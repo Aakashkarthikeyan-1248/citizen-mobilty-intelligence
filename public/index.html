@@ -42,7 +42,7 @@
             max-width: calc(100vw - 32px);
             background: #ffffff;
             border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(60,64,67,0.22), 0 1px 4px rgba(60,64,67,0.12);
+            box-shadow: 0 4px 18px rgba(60,64,67,0.25), 0 1px 4px rgba(60,64,67,0.15);
             z-index: 1000;
             display: flex;
             flex-direction: column;
@@ -299,7 +299,7 @@
             line-height: 1.4;
         }
 
-        /* ── Top-Right Autonomous Periodic Refresh Widget ────────── */
+        /* ── Top-Right Autonomous Periodic LLM Refresh Widget ────────── */
         .auto-refresh-widget {
             position: absolute;
             top: 16px;
@@ -404,7 +404,55 @@
             100% { transform: scale(2.2); opacity: 0; }
         }
 
-        /* ── Chennai Radius Boundary Indicator ───────────────────── */
+        /* ── Start & Destination Custom Marker Icons ─────────────── */
+        .custom-start-marker {
+            width: 34px;
+            height: 34px;
+            background: #1e8e3e;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            cursor: pointer;
+        }
+        .custom-start-marker svg { width: 18px; height: 18px; fill: currentColor; }
+
+        .custom-dest-marker {
+            width: 32px;
+            height: 40px;
+            cursor: pointer;
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.35));
+        }
+
+        /* ── Custom Dynamic Hazard Symbols ───────────────────────── */
+        .hazard-pin-symbol {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .hazard-pin-symbol:hover {
+            transform: scale(1.15);
+        }
+        .hazard-pin-symbol svg { width: 18px; height: 18px; fill: currentColor; }
+
+        .pin-construction { background: #e37400; }
+        .pin-hazard { background: #1a73e8; }
+        .pin-traffic { background: #d93025; }
+        .pin-closure { background: #a50e0e; }
+        .pin-signal { background: #f9ab00; color: #202124; }
+
+        /* ── Bottom-Left Chennai Locked Scope Badge ──────────────── */
         .chennai-badge {
             position: absolute;
             bottom: 24px;
@@ -475,22 +523,22 @@
 </head>
 <body>
 
-    <!-- Primary Interactive Map Canvas -->
+    <!-- Primary Map Canvas -->
     <div id="map"></div>
 
-    <!-- Top-Left Floating Google Maps Style Card -->
+    <!-- Top-Left Floating Directions Card -->
     <div class="gmap-card">
-        <!-- Travel Mode Selector -->
+        <!-- Travel Mode Selector (Drive / Transit / Walk) -->
         <div class="travel-modes">
-            <div class="mode-tab active" data-mode="driving">
+            <div class="mode-tab active" data-mode="driving" id="mode-driving">
                 <svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>
                 <span>Drive</span>
             </div>
-            <div class="mode-tab" data-mode="transit">
+            <div class="mode-tab" data-mode="transit" id="mode-transit">
                 <svg viewBox="0 0 24 24"><path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V6c0-3.5-3.58-4-8-4zm0 2c3.71 0 5.13.46 5.67 1H6.33c.54-.54 1.96-1 5.67-1zm6 11.5c0 .83-.67 1.5-1.5 1.5h-9c-.83 0-1.5-.67-1.5-1.5V12h12v3.5zm0-5.5H6V7h12v2z"/></svg>
                 <span>Transit</span>
             </div>
-            <div class="mode-tab" data-mode="walking">
+            <div class="mode-tab" data-mode="walking" id="mode-walking">
                 <svg viewBox="0 0 24 24"><path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7z"/></svg>
                 <span>Walk</span>
             </div>
@@ -508,13 +556,13 @@
                 <div class="inputs-wrapper">
                     <!-- Origin Input -->
                     <div class="input-row">
-                        <input id="input-origin" type="text" placeholder="Starting point (e.g. Chennai Central)" autocomplete="off" value="Chennai Central">
+                        <input id="input-origin" type="text" placeholder="Starting point (e.g. Chromepet Bus Stand)" autocomplete="off" value="Chromepet Bus Stand">
                         <div id="dropdown-origin" class="autocomplete-dropdown"></div>
                     </div>
 
                     <!-- Destination Input -->
                     <div class="input-row">
-                        <input id="input-destination" type="text" placeholder="Destination (e.g. Chennai Airport)" autocomplete="off" value="Chennai Airport">
+                        <input id="input-destination" type="text" placeholder="Destination (e.g. Egmore)" autocomplete="off" value="Egmore">
                         <div id="dropdown-destination" class="autocomplete-dropdown"></div>
                     </div>
                 </div>
@@ -550,7 +598,7 @@
                     <span id="ai-provider-badge" style="font-size:0.65rem; color:#5f6368; font-weight:400;">NVIDIA / Groq</span>
                 </div>
                 <div class="ai-summary-text" id="ai-summary-text">
-                    Calculating road trajectory and inspecting hazards...
+                    Calculating localized road trajectory and inspecting hazards...
                 </div>
             </div>
         </div>
@@ -576,7 +624,7 @@
         <span>Restricted to <strong>Chennai Metropolitan Territory</strong></span>
     </div>
 
-    <!-- Floating Map Controls (GPS Locate & Zoom) -->
+    <!-- Floating Map Controls (GPS Locate) -->
     <div class="map-controls-group">
         <button class="floating-fab" id="locate-me-btn" title="Track my movement (GPS)">
             <svg style="width:22px;height:22px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
@@ -586,7 +634,7 @@
     <!-- Corridor Hazards Bottom Drawer -->
     <div class="corridor-drawer" id="corridor-drawer">
         <div class="drawer-header">
-            <span>Chennai Corridor Hazards (<span id="alerts-count">0</span>)</span>
+            <span>Path-Specific Hazards (<span id="alerts-count">0</span>)</span>
             <span style="cursor:pointer;" onclick="document.getElementById('corridor-drawer').style.display='none'">✕</span>
         </div>
         <div id="drawer-alerts-list"></div>
@@ -597,7 +645,6 @@
 
     <script>
         // ── CHENNAI STRICT GEOGRAPHIC BOUNDING BOX ───────────────
-        // South: 12.72, West: 79.92, North: 13.38, East: 80.38
         const CHENNAI_SW = L.latLng(12.7200, 79.9200);
         const CHENNAI_NE = L.latLng(13.3800, 80.3800);
         const CHENNAI_BOUNDS = L.latLngBounds(CHENNAI_SW, CHENNAI_NE);
@@ -607,41 +654,108 @@
             zoomControl: false,
             center: [13.0600, 80.2400],
             zoom: 12,
-            minZoom: 11,               // Prevents zooming out to the entire world!
+            minZoom: 11,               // Locks minimum zoom to Chennai
             maxZoom: 18,
-            maxBounds: CHENNAI_BOUNDS, // Locks viewport within Chennai radius!
-            maxBoundsViscosity: 1.0    // Hard bounce back if user tries to pan outside Chennai
+            maxBounds: CHENNAI_BOUNDS, // Locks viewport within Chennai radius
+            maxBoundsViscosity: 1.0    // Rebound preventing panning outside Chennai
         });
 
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        // ── Crisp Google Maps & OpenStreetMap Tiles (NO WATERMARKS!) ─
-        // Official Google Maps public tiles (lyrs=m : standard road map)
+        // Google Maps Clean Tiles (No Watermark!)
         const googleRoadLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
             attribution: '&copy; Google Maps',
             maxZoom: 19,
             bounds: CHENNAI_BOUNDS
         });
 
-        // OpenStreetMap Standard Tile Layer as robust fallback
+        // OpenStreetMap Fallback
         const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors',
             maxZoom: 19,
             bounds: CHENNAI_BOUNDS
         });
 
-        // Add Google Maps layer by default
         googleRoadLayer.addTo(map);
         googleRoadLayer.on('tileerror', () => {
             if (!map.hasLayer(osmLayer)) osmLayer.addTo(map);
         });
 
-        // Layers
+        // Layers & State
         const routeLayerGroup = L.layerGroup().addTo(map);
         const alertsLayerGroup = L.layerGroup().addTo(map);
         let userLocationMarker = null;
         let userAccuracyCircle = null;
         let gpsWatchId = null;
+        let currentTravelMode = 'driving'; // driving | transit | walking
+
+        // ── Custom SVG Hazard Icons Map ───────────────────────────
+        function getHazardIcon(category, severity) {
+            let colorClass = 'pin-construction';
+            let svgPath = '';
+
+            if (category === 'construction') {
+                colorClass = 'pin-construction';
+                // Excavator / Crane / Barrier
+                svgPath = '<path d="M19 13.5V9l-5-5H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-4.5h-2zm-5-7.5l3.5 3.5H14V6zm-9 12V6h7v5h5v7H5zM8 15h8v2H8z"/>';
+            } else if (category === 'hazard') {
+                colorClass = 'pin-hazard';
+                // Water waves / flood
+                svgPath = '<path d="M12 2c-4.42 0-8 3.58-8 8 0 4.08 3.05 7.44 7 7.93V22h2v-4.07c3.95-.49 7-3.85 7-7.93 0-4.42-3.58-8-8-8zm-1 12H9v-2h2v2zm0-4H9V6h2v4zm4 4h-2v-2h2v2zm0-4h-2V6h2v4z"/>';
+            } else if (category === 'traffic') {
+                colorClass = severity === 'critical' || severity === 'high' ? 'pin-traffic' : 'pin-signal';
+                // Traffic jam / cars
+                svgPath = '<path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>';
+            } else {
+                colorClass = 'pin-closure';
+                // Detour / warning triangle
+                svgPath = '<path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>';
+            }
+
+            return L.divIcon({
+                html: `<div class="hazard-pin-symbol ${colorClass}"><svg viewBox="0 0 24 24">${svgPath}</svg></div>`,
+                className: '',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+        }
+
+        // ── Custom Start & Destination Marker Icons ───────────────
+        const startIcon = L.divIcon({
+            html: `
+                <div class="custom-start-marker" title="START">
+                    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+            `,
+            className: '',
+            iconSize: [34, 34],
+            iconAnchor: [17, 17]
+        });
+
+        const destIcon = L.divIcon({
+            html: `
+                <div class="custom-dest-marker" title="DESTINATION">
+                    <svg viewBox="0 0 24 24" style="width:32px;height:40px;">
+                        <path fill="#ea4335" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                        <circle cx="12" cy="9" r="3.2" fill="#ffffff"/>
+                        <circle cx="12" cy="9" r="1.5" fill="#ea4335"/>
+                    </svg>
+                </div>
+            `,
+            className: '',
+            iconSize: [32, 40],
+            iconAnchor: [16, 40]
+        });
+
+        // ── Travel Mode Selection (Drive / Transit / Walk) ─────────
+        document.querySelectorAll('.mode-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                currentTravelMode = tab.getAttribute('data-mode');
+                calculateAndRenderRoute(false);
+            });
+        });
 
         // ── Predictive Autocomplete Search (Chennai Restricted) ───
         function setupAutocomplete(inputId, dropdownId) {
@@ -697,7 +811,7 @@
                 el.addEventListener('click', () => {
                     input.value = item.name;
                     dropdown.style.display = 'none';
-                    calculateAndRenderRoute();
+                    calculateAndRenderRoute(false);
                 });
                 dropdown.appendChild(el);
             });
@@ -714,10 +828,10 @@
             const temp = orig.value;
             orig.value = dest.value;
             dest.value = temp;
-            calculateAndRenderRoute();
+            calculateAndRenderRoute(false);
         });
 
-        // ── Google Maps Road Polyline Calculation ────────────────
+        // ── Route & Path-Specific Hazard Calculation ──────────────
         async function calculateAndRenderRoute(isAuto = false) {
             const originVal = document.getElementById('input-origin').value.trim();
             const destVal = document.getElementById('input-destination').value.trim();
@@ -726,7 +840,7 @@
 
             const btn = document.getElementById('btn-analyze');
             if (!isAuto) {
-                btn.innerHTML = '<span>Routing along roads...</span>';
+                btn.innerHTML = '<span>Routing along path...</span>';
                 btn.disabled = true;
             }
 
@@ -741,7 +855,11 @@
                 const response = await fetch('/api/route/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ origin: originVal, destination: destVal })
+                    body: JSON.stringify({
+                        origin: originVal,
+                        destination: destVal,
+                        mode: currentTravelMode
+                    })
                 });
 
                 if (!response.ok) throw new Error('Analysis failed.');
@@ -750,69 +868,79 @@
                 routeLayerGroup.clearLayers();
                 alertsLayerGroup.clearLayers();
 
-                // 1. Draw Google Maps Styled Road Polylines
+                // 1. Draw Road Polyline with Mode Specific Styling
                 const roadCoords = data.route_geometry;
                 if (roadCoords && roadCoords.length > 0) {
-                    // Outer navy casing
-                    L.polyline(roadCoords, {
-                        color: '#1558b0',
-                        weight: 8,
-                        opacity: 0.95,
-                        lineCap: 'round',
-                        lineJoin: 'round'
-                    }).addTo(routeLayerGroup);
+                    if (currentTravelMode === 'walking') {
+                        // Walking: Dashed blue pedestrian line
+                        const walkPolyline = L.polyline(roadCoords, {
+                            color: '#1a73e8',
+                            weight: 5,
+                            opacity: 0.9,
+                            dashArray: '8, 8',
+                            lineCap: 'round'
+                        }).addTo(routeLayerGroup);
+                        if (!isAuto) map.fitBounds(walkPolyline.getBounds(), { padding: [60, 60], maxZoom: 15 });
 
-                    // Inner vibrant Google blue
-                    const mainPolyline = L.polyline(roadCoords, {
-                        color: '#4285F4',
-                        weight: 5,
-                        opacity: 1,
-                        lineCap: 'round',
-                        lineJoin: 'round'
-                    }).addTo(routeLayerGroup);
+                    } else if (currentTravelMode === 'transit') {
+                        // Transit: Vibrant green/purple transit line
+                        L.polyline(roadCoords, {
+                            color: '#0d652d',
+                            weight: 8,
+                            opacity: 0.9,
+                            lineCap: 'round',
+                            lineJoin: 'round'
+                        }).addTo(routeLayerGroup);
 
-                    if (!isAuto) {
-                        map.fitBounds(mainPolyline.getBounds(), { padding: [60, 60], maxZoom: 15 });
+                        const transitPolyline = L.polyline(roadCoords, {
+                            color: '#34a853',
+                            weight: 5,
+                            opacity: 1,
+                            dashArray: '12, 6',
+                            lineCap: 'round'
+                        }).addTo(routeLayerGroup);
+                        if (!isAuto) map.fitBounds(transitPolyline.getBounds(), { padding: [60, 60], maxZoom: 15 });
+
+                    } else {
+                        // Driving: Google Maps Blue with Navy Casing
+                        L.polyline(roadCoords, {
+                            color: '#1558b0',
+                            weight: 8,
+                            opacity: 0.95,
+                            lineCap: 'round',
+                            lineJoin: 'round'
+                        }).addTo(routeLayerGroup);
+
+                        const mainPolyline = L.polyline(roadCoords, {
+                            color: '#4285F4',
+                            weight: 5,
+                            opacity: 1,
+                            lineCap: 'round',
+                            lineJoin: 'round'
+                        }).addTo(routeLayerGroup);
+                        if (!isAuto) map.fitBounds(mainPolyline.getBounds(), { padding: [60, 60], maxZoom: 15 });
                     }
                 }
 
-                // 2. Drop Start Pin (Green) and Destination Pin (Red)
+                // 2. Drop Start Icon (Green Beacon) and Destination Pin (Red Teardrop)
                 const startPt = roadCoords[0];
                 const endPt = roadCoords[roadCoords.length - 1];
 
-                L.circleMarker(startPt, {
-                    radius: 7,
-                    fillColor: '#1e8e3e',
-                    color: '#ffffff',
-                    weight: 2,
-                    fillOpacity: 1
-                }).addTo(routeLayerGroup).bindPopup(`<b>Start:</b> ${originVal}`);
+                L.marker(startPt, { icon: startIcon }).addTo(routeLayerGroup).bindPopup(`<b>Start Point</b><br>${originVal}`);
+                L.marker(endPt, { icon: destIcon }).addTo(routeLayerGroup).bindPopup(`<b>Destination</b><br>${destVal}`);
 
-                const destIcon = L.divIcon({
-                    html: `<svg style="width:28px;height:28px;transform:translate(-14px,-28px);" viewBox="0 0 24 24"><path fill="#ea4335" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/><path fill="#ffffff" d="M12 6.5c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5 2.5 2.5-1.12 2.5-2.5-2.5-2.5z"/></svg>`,
-                    className: '',
-                    iconSize: [0, 0]
-                });
-                L.marker(endPt, { icon: destIcon }).addTo(routeLayerGroup).bindPopup(`<b>Destination:</b> ${destVal}`);
-
-                // 3. Render Hazard Markers
+                // 3. Render Distinct Path-Specific Hazard Symbols
                 const alerts = data.alerts || [];
                 document.getElementById('alerts-count').innerText = alerts.length;
                 const drawerList = document.getElementById('drawer-alerts-list');
                 drawerList.innerHTML = '';
 
                 alerts.forEach(a => {
-                    const colorHex = a.marker_color === 'red' || a.marker_color === 'darkred' ? '#ea4335' : (a.marker_color === 'orange' ? '#fbbc04' : '#34a853');
-                    const hazardIcon = L.divIcon({
-                        html: `<div style="background:${colorHex};width:22px;height:22px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:bold;">!</div>`,
-                        className: '',
-                        iconSize: [22, 22]
-                    });
-
-                    const m = L.marker([a.lat, a.lng], { icon: hazardIcon }).addTo(alertsLayerGroup);
+                    const customHazardIcon = getHazardIcon(a.category, a.severity);
+                    const m = L.marker([a.lat, a.lng], { icon: customHazardIcon }).addTo(alertsLayerGroup);
                     m.bindPopup(`
                         <div style="font-family:'Google Sans',sans-serif;max-width:220px;">
-                            <span style="font-size:10px;text-transform:uppercase;color:${colorHex};font-weight:bold;">${a.category} • ${a.severity}</span>
+                            <span style="font-size:10px;text-transform:uppercase;color:#e37400;font-weight:bold;">${a.category.toUpperCase()} • ${a.severity.toUpperCase()}</span>
                             <div style="font-size:13px;font-weight:bold;margin:2px 0;">${a.headline}</div>
                             <div style="font-size:11px;color:#5f6368;">${a.description}</div>
                         </div>
@@ -836,8 +964,21 @@
                     document.getElementById('corridor-drawer').style.display = 'block';
                 }
 
-                // 4. Update UI Summary
-                document.getElementById('eta-time').innerText = `${Math.round(data.duration_min)} min`;
+                // 4. Update ETA & AI Summary
+                const durMin = Math.round(data.duration_min);
+                if (currentTravelMode === 'walking') {
+                    const hours = Math.floor(durMin / 60);
+                    const mins = durMin % 60;
+                    document.getElementById('eta-time').innerText = hours > 0 ? `${hours} hr ${mins} min` : `${mins} min`;
+                    document.getElementById('traffic-pill').innerHTML = '<span>●</span> Pedestrian Walkway Protected';
+                } else if (currentTravelMode === 'transit') {
+                    document.getElementById('eta-time').innerText = `${durMin} min`;
+                    document.getElementById('traffic-pill').innerHTML = '<span>●</span> Chennai Metro & MTC Bus Corridor';
+                } else {
+                    document.getElementById('eta-time').innerText = `${durMin} min`;
+                    document.getElementById('traffic-pill').innerHTML = '<span>●</span> Fastest route now • Live Protected';
+                }
+
                 document.getElementById('eta-distance').innerText = `(${data.distance_km} km)`;
                 document.getElementById('ai-summary-text').innerText = data.summary;
                 document.getElementById('ai-provider-badge').innerText = `Provider: ${data.provider.toUpperCase()}`;
@@ -871,12 +1012,10 @@
             countdownDisplay.innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
         }
 
-        // Ticking interval running automatically without human intervention
         setInterval(() => {
             refreshSecondsRemaining -= 1;
             if (refreshSecondsRemaining <= 0) {
-                // Time reached: trigger automated LLM route re-analysis
-                console.log('Automated interval elapsed: refreshing LLM intelligence...');
+                console.log('Autonomous interval elapsed: refreshing LLM intelligence...');
                 calculateAndRenderRoute(true);
                 refreshSecondsRemaining = activeIntervalSeconds;
             }
@@ -926,7 +1065,6 @@
                             weight: 1
                         }).addTo(map);
 
-                        // If within Chennai, center on user
                         if (CHENNAI_BOUNDS.contains([lat, lng])) {
                             map.setView([lat, lng], 15);
                         }

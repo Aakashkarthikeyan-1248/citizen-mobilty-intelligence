@@ -33,6 +33,10 @@ class RouteAnalysisRequest(BaseModel):
         description="Human-readable end location (e.g., 'Chennai Airport')",
         examples=["Chennai Airport"],
     )
+    mode: str = Field(
+        default="driving",
+        description="Travel mode: driving | transit | walking",
+    )
 
 
 class AlertMarker(BaseModel):
@@ -61,6 +65,7 @@ class RouteAnalysisResponse(BaseModel):
     duration_min: float = Field(default=0.0, description="Estimated transit duration in minutes")
     origin_coords: dict = Field(default_factory=dict, description="Resolved lat/lng for origin")
     destination_coords: dict = Field(default_factory=dict, description="Resolved lat/lng for destination")
+    travel_mode: str = Field(default="driving", description="Selected travel mode")
 
 
 class PlaceSuggestion(BaseModel):
@@ -108,12 +113,13 @@ def create_router(
     )
     async def analyze_route(req: RouteAnalysisRequest):
         """Main endpoint — triggers the full road corridor analysis pipeline."""
-        logger.info("Route analysis requested: '%s' → '%s'", req.origin, req.destination)
+        logger.info("Route analysis requested: '%s' → '%s' [mode: %s]", req.origin, req.destination, req.mode)
 
         try:
             corridor_summary = await route_harvester.process(
                 origin=req.origin,
                 destination=req.destination,
+                mode=req.mode,
             )
         except Exception as exc:
             logger.exception("Route analysis pipeline failed")
@@ -131,6 +137,7 @@ def create_router(
             origin_coords=corridor_summary.origin_coords,
             destination_coords=corridor_summary.destination_coords,
             route_geometry=corridor_summary.route_geometry,
+            travel_mode=corridor_summary.travel_mode,
             alerts=[
                 AlertMarker(
                     headline=a.headline,
