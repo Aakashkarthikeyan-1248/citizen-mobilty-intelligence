@@ -45,19 +45,32 @@ logger = logging.getLogger("cmi.deploy")
 
 # ── Git Operations ─────────────────────────────────────────────
 
-def run_cmd(cmd: list[str], cwd: Path = PROJECT_ROOT) -> tuple[int, str]:
+def run_cmd(cmd: list[str], cwd: Path = PROJECT_ROOT, timeout: float = 30.0) -> tuple[int, str]:
     """
     Execute a shell command and return (exit_code, output).
     Logs the command being run for auditability.
+    Prevents hanging prompts by setting GIT_TERMINAL_PROMPT=0.
     """
     logger.info("$ %s", " ".join(cmd))
-    result = subprocess.run(
-        cmd,
-        cwd=str(cwd),
-        capture_output=True,
-        text=True,
-    )
-    output = (result.stdout + result.stderr).strip()
+    env = os.environ.copy()
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=timeout,
+        )
+        output = (result.stdout + result.stderr).strip()
+    except subprocess.TimeoutExpired:
+        logger.warning("Command timed out after %.1f seconds: %s", timeout, " ".join(cmd))
+        return 1, "Command timed out."
+    except Exception as exc:
+        logger.error("Command execution error: %s", exc)
+        return 1, str(exc)
+
     if output:
         for line in output.splitlines():
             logger.info("  %s", line)
