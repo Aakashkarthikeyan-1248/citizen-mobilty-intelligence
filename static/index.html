@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CMI — Citizen Mobility Intelligence</title>
+    <title>CMI — Citizen Mobility Intelligence (Chennai)</title>
 
     <!-- Google Fonts & Leaflet CSS -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
     <style>
-        /* ── Reset & Google Typography ───────────────────────────── */
+        /* ── Reset & Typography ──────────────────────────────────── */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         body, html {
@@ -42,12 +42,11 @@
             max-width: calc(100vw - 32px);
             background: #ffffff;
             border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(60,64,67,0.2), 0 1px 4px rgba(60,64,67,0.1);
+            box-shadow: 0 4px 16px rgba(60,64,67,0.22), 0 1px 4px rgba(60,64,67,0.12);
             z-index: 1000;
             display: flex;
             flex-direction: column;
             overflow: visible;
-            transition: all 0.25s ease;
         }
 
         /* Travel Mode Tabs */
@@ -75,13 +74,9 @@
             color: #1a73e8;
             border-bottom-color: #1a73e8;
         }
-        .mode-tab svg {
-            width: 18px;
-            height: 18px;
-            fill: currentColor;
-        }
+        .mode-tab svg { width: 18px; height: 18px; fill: currentColor; }
 
-        /* Input Form */
+        /* Search Form */
         .search-form {
             padding: 14px 16px 12px;
             position: relative;
@@ -157,18 +152,6 @@
             border-color: #1a73e8;
             box-shadow: 0 1px 3px rgba(66,133,244,0.3);
         }
-        .input-row .clear-btn {
-            position: absolute;
-            right: 8px;
-            background: none;
-            border: none;
-            color: #70757a;
-            cursor: pointer;
-            display: none;
-            padding: 4px;
-            border-radius: 50%;
-        }
-        .input-row .clear-btn:hover { background: #e8eaed; color: #202124; }
 
         /* Reverse / Swap Button */
         .swap-btn {
@@ -183,10 +166,7 @@
             justify-content: center;
             transition: background 0.2s, transform 0.2s;
         }
-        .swap-btn:hover {
-            background: #f1f3f4;
-            transform: rotate(180deg);
-        }
+        .swap-btn:hover { background: #f1f3f4; transform: rotate(180deg); }
         .swap-btn svg { width: 20px; height: 20px; fill: currentColor; }
 
         /* Action Buttons */
@@ -229,7 +209,7 @@
             border-radius: 8px;
             box-shadow: 0 4px 14px rgba(60,64,67,0.25);
             margin-top: 4px;
-            max-height: 240px;
+            max-height: 220px;
             overflow-y: auto;
             z-index: 2000;
             display: none;
@@ -245,33 +225,15 @@
             transition: background 0.15s;
         }
         .autocomplete-item:last-child { border-bottom: none; }
-        .autocomplete-item:hover, .autocomplete-item.active {
-            background: #f8f9fa;
-        }
-        .autocomplete-icon {
-            color: #5f6368;
-            display: flex;
-            align-items: center;
-        }
-        .autocomplete-text {
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
+        .autocomplete-item:hover { background: #f8f9fa; }
         .autocomplete-name {
             font-size: 0.9rem;
             font-weight: 500;
             color: #202124;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
         .autocomplete-sub {
             font-size: 0.75rem;
             color: #70757a;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
         /* ── Route Navigation Summary Banner (Google Style) ─────── */
@@ -291,7 +253,7 @@
         .eta-time {
             font-size: 1.5rem;
             font-weight: 700;
-            color: #188038; /* Green for clear/fast */
+            color: #188038;
         }
         .eta-dist {
             font-size: 0.95rem;
@@ -337,27 +299,21 @@
             line-height: 1.4;
         }
 
-        /* ── Top-Right Autonomous Background Intelligence Bar ───── */
-        .auto-ticker {
+        /* ── Top-Right Autonomous Periodic Refresh Widget ────────── */
+        .auto-refresh-widget {
             position: absolute;
             top: 16px;
             right: 16px;
             background: #ffffff;
             border-radius: 24px;
-            padding: 8px 16px;
-            box-shadow: 0 2px 8px rgba(60,64,67,0.18);
+            padding: 6px 16px;
+            box-shadow: 0 2px 10px rgba(60,64,67,0.2);
             z-index: 1000;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             font-size: 0.82rem;
             color: #3c4043;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .auto-ticker:hover {
-            box-shadow: 0 4px 12px rgba(60,64,67,0.25);
-            background: #f8f9fa;
         }
         .pulse-beacon {
             width: 8px;
@@ -365,13 +321,33 @@
             border-radius: 50%;
             background: #34a853;
             box-shadow: 0 0 0 0 rgba(52, 168, 83, 0.7);
-            animation: beacon-pulse 1.8s infinite cubic-bezier(0.66, 0, 0, 1);
+            animation: beacon-pulse 1.8s infinite cubic-bezier(0.66, 0, 1);
         }
         @keyframes beacon-pulse {
             to { box-shadow: 0 0 0 9px rgba(52, 168, 83, 0); }
         }
 
-        /* ── Floating Map Action Buttons (Locate GPS & Layers) ──── */
+        .countdown-badge {
+            font-family: monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            background: #e8f0fe;
+            color: #1a73e8;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+        .interval-select {
+            border: 1px solid #dadce0;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            background: #ffffff;
+            outline: none;
+            color: #5f6368;
+            cursor: pointer;
+        }
+
+        /* ── Floating Map Action Buttons (Locate GPS & Bounds) ──── */
         .map-controls-group {
             position: absolute;
             bottom: 24px;
@@ -400,10 +376,7 @@
             color: #1a73e8;
             box-shadow: 0 4px 10px rgba(0,0,0,0.35);
         }
-        .floating-fab.active {
-            color: #1a73e8;
-            background: #e8f0fe;
-        }
+        .floating-fab.active { color: #1a73e8; background: #e8f0fe; }
 
         /* ── Live GPS User Pulsing Marker ────────────────────────── */
         .gps-user-marker {
@@ -429,6 +402,23 @@
         @keyframes gps-wave {
             0% { transform: scale(0.6); opacity: 1; }
             100% { transform: scale(2.2); opacity: 0; }
+        }
+
+        /* ── Chennai Radius Boundary Indicator ───────────────────── */
+        .chennai-badge {
+            position: absolute;
+            bottom: 24px;
+            left: 16px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 6px 14px;
+            font-size: 0.75rem;
+            color: #5f6368;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         /* ── Corridor Drawer (Bottom Slide-Up for Alerts) ────────── */
@@ -519,25 +509,23 @@
                     <!-- Origin Input -->
                     <div class="input-row">
                         <input id="input-origin" type="text" placeholder="Starting point (e.g. Chennai Central)" autocomplete="off" value="Chennai Central">
-                        <button class="clear-btn" id="clear-origin">✕</button>
                         <div id="dropdown-origin" class="autocomplete-dropdown"></div>
                     </div>
 
                     <!-- Destination Input -->
                     <div class="input-row">
-                        <input id="input-destination" type="text" placeholder="Choose destination (e.g. Chennai Airport)" autocomplete="off" value="Chennai Airport">
-                        <button class="clear-btn" id="clear-destination">✕</button>
+                        <input id="input-destination" type="text" placeholder="Destination (e.g. Chennai Airport)" autocomplete="off" value="Chennai Airport">
                         <div id="dropdown-destination" class="autocomplete-dropdown"></div>
                     </div>
                 </div>
 
-                <!-- Invert / Swap Button -->
+                <!-- Swap Button -->
                 <button class="swap-btn" id="swap-route-btn" title="Reverse route">
                     <svg viewBox="0 0 24 24"><path d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z"/></svg>
                 </button>
             </div>
 
-            <!-- Action Trigger -->
+            <!-- Action Button -->
             <div class="action-row">
                 <button class="btn-calc" id="btn-analyze">
                     <svg style="width:18px;height:18px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
@@ -546,14 +534,14 @@
             </div>
         </div>
 
-        <!-- Google Maps Style Route ETA & AI Summary Panel -->
+        <!-- Route Summary Panel -->
         <div class="route-summary-panel" id="route-panel">
             <div class="route-eta-row">
                 <div class="eta-time" id="eta-time">-- min</div>
                 <div class="eta-dist" id="eta-distance">(-- km)</div>
             </div>
             <div class="traffic-pill" id="traffic-pill">
-                <span>●</span> Fastest route now • Live Corridor Protected
+                <span>●</span> Fastest route now • Chennai Corridor Protected
             </div>
 
             <div class="ai-summary-box">
@@ -562,23 +550,35 @@
                     <span id="ai-provider-badge" style="font-size:0.65rem; color:#5f6368; font-weight:400;">NVIDIA / Groq</span>
                 </div>
                 <div class="ai-summary-text" id="ai-summary-text">
-                    Calculating driving path and inspecting active corridor hazards...
+                    Calculating road trajectory and inspecting hazards...
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Top-Right Autonomous Background Intelligence Ticker -->
-    <div class="auto-ticker" id="auto-ticker-bar" title="Click to view automated corridor intelligence">
+    <!-- Top-Right Autonomous Periodic LLM Refresh Widget -->
+    <div class="auto-refresh-widget">
         <div class="pulse-beacon"></div>
         <div>
-            <strong>Auto-LLM Scheduler:</strong> <span id="auto-status-text">Active (every 5 min)</span>
+            <strong>Auto-LLM:</strong>
+            <span class="countdown-badge" id="countdown-timer">02:00</span>
         </div>
+        <select class="interval-select" id="refresh-interval-select" title="Change Auto-Refresh Interval">
+            <option value="60">Every 1 min</option>
+            <option value="120" selected>Every 2 min</option>
+            <option value="300">Every 5 min</option>
+        </select>
+    </div>
+
+    <!-- Bottom-Left Chennai Locked Scope Badge -->
+    <div class="chennai-badge">
+        <svg style="width:14px;height:14px;fill:#1a73e8;" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        <span>Restricted to <strong>Chennai Metropolitan Territory</strong></span>
     </div>
 
     <!-- Floating Map Controls (GPS Locate & Zoom) -->
     <div class="map-controls-group">
-        <button class="floating-fab" id="locate-me-btn" title="Show my current location (GPS)">
+        <button class="floating-fab" id="locate-me-btn" title="Track my movement (GPS)">
             <svg style="width:22px;height:22px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
         </button>
     </div>
@@ -586,7 +586,7 @@
     <!-- Corridor Hazards Bottom Drawer -->
     <div class="corridor-drawer" id="corridor-drawer">
         <div class="drawer-header">
-            <span>Corridor Hazards & Alerts (<span id="alerts-count">0</span>)</span>
+            <span>Chennai Corridor Hazards (<span id="alerts-count">0</span>)</span>
             <span style="cursor:pointer;" onclick="document.getElementById('corridor-drawer').style.display='none'">✕</span>
         </div>
         <div id="drawer-alerts-list"></div>
@@ -596,35 +596,55 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <script>
-        // ── Map Initialization (Google Maps Clean Canvas) ─────────
+        // ── CHENNAI STRICT GEOGRAPHIC BOUNDING BOX ───────────────
+        // South: 12.72, West: 79.92, North: 13.38, East: 80.38
+        const CHENNAI_SW = L.latLng(12.7200, 79.9200);
+        const CHENNAI_NE = L.latLng(13.3800, 80.3800);
+        const CHENNAI_BOUNDS = L.latLngBounds(CHENNAI_SW, CHENNAI_NE);
+
+        // Map setup restricted exclusively to Chennai
         const map = L.map('map', {
             zoomControl: false,
-            center: [13.0478, 80.2400],
-            zoom: 12
+            center: [13.0600, 80.2400],
+            zoom: 12,
+            minZoom: 11,               // Prevents zooming out to the entire world!
+            maxZoom: 18,
+            maxBounds: CHENNAI_BOUNDS, // Locks viewport within Chennai radius!
+            maxBoundsViscosity: 1.0    // Hard bounce back if user tries to pan outside Chennai
         });
 
-        // Add Leaflet zoom control to bottom right
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        // Modern Google Maps styled CartoDB Voyager tiles (clean roads, labels, flyovers)
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap &copy; CARTO',
-            maxZoom: 19
-        }).addTo(map);
+        // ── Crisp Google Maps & OpenStreetMap Tiles (NO WATERMARKS!) ─
+        // Official Google Maps public tiles (lyrs=m : standard road map)
+        const googleRoadLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            attribution: '&copy; Google Maps',
+            maxZoom: 19,
+            bounds: CHENNAI_BOUNDS
+        });
 
-        // Map Layer Groups
+        // OpenStreetMap Standard Tile Layer as robust fallback
+        const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19,
+            bounds: CHENNAI_BOUNDS
+        });
+
+        // Add Google Maps layer by default
+        googleRoadLayer.addTo(map);
+        googleRoadLayer.on('tileerror', () => {
+            if (!map.hasLayer(osmLayer)) osmLayer.addTo(map);
+        });
+
+        // Layers
         const routeLayerGroup = L.layerGroup().addTo(map);
         const alertsLayerGroup = L.layerGroup().addTo(map);
         let userLocationMarker = null;
         let userAccuracyCircle = null;
         let gpsWatchId = null;
 
-        // Coordinates storage for autofilled queries
-        let originCoords = null;
-        let destCoords = null;
-
-        // ── Autocomplete / Predictive Location Search Engine ──────
-        function setupAutocomplete(inputId, dropdownId, onSelectCoord) {
+        // ── Predictive Autocomplete Search (Chennai Restricted) ───
+        function setupAutocomplete(inputId, dropdownId) {
             const input = document.getElementById(inputId);
             const dropdown = document.getElementById(dropdownId);
             let debounceTimer = null;
@@ -643,14 +663,13 @@
                         const res = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(query)}`);
                         if (!res.ok) return;
                         const suggestions = await res.json();
-                        renderDropdown(suggestions, input, dropdown, onSelectCoord);
+                        renderDropdown(suggestions, input, dropdown);
                     } catch (e) {
                         console.warn('Autocomplete fetch error:', e);
                     }
                 }, 220);
             });
 
-            // Close dropdown when clicking outside
             document.addEventListener('click', (e) => {
                 if (!input.contains(e.target) && !dropdown.contains(e.target)) {
                     dropdown.style.display = 'none';
@@ -658,7 +677,7 @@
             });
         }
 
-        function renderDropdown(items, input, dropdown, onSelectCoord) {
+        function renderDropdown(items, input, dropdown) {
             if (!items || items.length === 0) {
                 dropdown.style.display = 'none';
                 return;
@@ -669,57 +688,54 @@
                 const el = document.createElement('div');
                 el.className = 'autocomplete-item';
                 el.innerHTML = `
-                    <div class="autocomplete-icon">
-                        <svg style="width:16px;height:16px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                    </div>
-                    <div class="autocomplete-text">
+                    <svg style="width:16px;height:16px;fill:#1a73e8;flex-shrink:0;" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                    <div>
                         <div class="autocomplete-name">${item.name}</div>
-                        <div class="autocomplete-sub">${item.subtitle || 'Chennai, Tamil Nadu'}</div>
+                        <div class="autocomplete-sub">${item.subtitle || 'Chennai Metropolitan Area'}</div>
                     </div>
                 `;
                 el.addEventListener('click', () => {
                     input.value = item.name;
                     dropdown.style.display = 'none';
-                    onSelectCoord({ lat: item.lat, lng: item.lng, name: item.name });
+                    calculateAndRenderRoute();
                 });
                 dropdown.appendChild(el);
             });
             dropdown.style.display = 'block';
         }
 
-        setupAutocomplete('input-origin', 'dropdown-origin', (coord) => { originCoords = coord; });
-        setupAutocomplete('input-destination', 'dropdown-destination', (coord) => { destCoords = coord; });
+        setupAutocomplete('input-origin', 'dropdown-origin');
+        setupAutocomplete('input-destination', 'dropdown-destination');
 
         // Swap button
         document.getElementById('swap-route-btn').addEventListener('click', () => {
-            const origInput = document.getElementById('input-origin');
-            const destInput = document.getElementById('input-destination');
-            const tempVal = origInput.value;
-            origInput.value = destInput.value;
-            destInput.value = tempVal;
-
-            const tempCoord = originCoords;
-            originCoords = destCoords;
-            destCoords = tempCoord;
+            const orig = document.getElementById('input-origin');
+            const dest = document.getElementById('input-destination');
+            const temp = orig.value;
+            orig.value = dest.value;
+            dest.value = temp;
+            calculateAndRenderRoute();
         });
 
-        // ── Google Maps Road Polyline Renderer ────────────────────
-        async function calculateAndRenderRoute() {
+        // ── Google Maps Road Polyline Calculation ────────────────
+        async function calculateAndRenderRoute(isAuto = false) {
             const originVal = document.getElementById('input-origin').value.trim();
             const destVal = document.getElementById('input-destination').value.trim();
 
-            if (!originVal || !destVal) {
-                alert('Please enter both Origin and Destination.');
-                return;
-            }
+            if (!originVal || !destVal) return;
 
             const btn = document.getElementById('btn-analyze');
-            btn.innerHTML = '<span>Routing along roads...</span>';
-            btn.disabled = true;
+            if (!isAuto) {
+                btn.innerHTML = '<span>Routing along roads...</span>';
+                btn.disabled = true;
+            }
 
             const routePanel = document.getElementById('route-panel');
             routePanel.style.display = 'block';
-            document.getElementById('ai-summary-text').innerText = 'Generating turn-by-turn road polyline and evaluating corridor hazards...';
+
+            if (!isAuto) {
+                document.getElementById('ai-summary-text').innerText = 'Calling LLM router (NVIDIA / Groq) for real-time corridor evaluation...';
+            }
 
             try {
                 const response = await fetch('/api/route/analyze', {
@@ -728,26 +744,25 @@
                     body: JSON.stringify({ origin: originVal, destination: destVal })
                 });
 
-                if (!response.ok) throw new Error('Route analysis failed.');
+                if (!response.ok) throw new Error('Analysis failed.');
                 const data = await response.json();
 
-                // Clear previous route & alert layers
                 routeLayerGroup.clearLayers();
                 alertsLayerGroup.clearLayers();
 
                 // 1. Draw Google Maps Styled Road Polylines
                 const roadCoords = data.route_geometry;
                 if (roadCoords && roadCoords.length > 0) {
-                    // Outer border casing (Google Maps navy border)
+                    // Outer navy casing
                     L.polyline(roadCoords, {
                         color: '#1558b0',
                         weight: 8,
-                        opacity: 0.9,
+                        opacity: 0.95,
                         lineCap: 'round',
                         lineJoin: 'round'
                     }).addTo(routeLayerGroup);
 
-                    // Inner core route line (Google Maps vibrant blue)
+                    // Inner vibrant Google blue
                     const mainPolyline = L.polyline(roadCoords, {
                         color: '#4285F4',
                         weight: 5,
@@ -756,14 +771,15 @@
                         lineJoin: 'round'
                     }).addTo(routeLayerGroup);
 
-                    map.fitBounds(mainPolyline.getBounds(), { padding: [60, 60] });
+                    if (!isAuto) {
+                        map.fitBounds(mainPolyline.getBounds(), { padding: [60, 60], maxZoom: 15 });
+                    }
                 }
 
                 // 2. Drop Start Pin (Green) and Destination Pin (Red)
                 const startPt = roadCoords[0];
                 const endPt = roadCoords[roadCoords.length - 1];
 
-                // Origin Marker
                 L.circleMarker(startPt, {
                     radius: 7,
                     fillColor: '#1e8e3e',
@@ -772,15 +788,14 @@
                     fillOpacity: 1
                 }).addTo(routeLayerGroup).bindPopup(`<b>Start:</b> ${originVal}`);
 
-                // Destination Teardrop Marker
                 const destIcon = L.divIcon({
-                    html: `<svg style="width:28px;height:28px;transform:translate(-14px,-28px);" viewBox="0 0 24 24"><path fill="#ea4335" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/><path fill="#ffffff" d="M12 6.5c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5z"/></svg>`,
+                    html: `<svg style="width:28px;height:28px;transform:translate(-14px,-28px);" viewBox="0 0 24 24"><path fill="#ea4335" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/><path fill="#ffffff" d="M12 6.5c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5 2.5 2.5-1.12 2.5-2.5-2.5-2.5z"/></svg>`,
                     className: '',
                     iconSize: [0, 0]
                 });
                 L.marker(endPt, { icon: destIcon }).addTo(routeLayerGroup).bindPopup(`<b>Destination:</b> ${destVal}`);
 
-                // 3. Render Hazard Markers along the corridor
+                // 3. Render Hazard Markers
                 const alerts = data.alerts || [];
                 document.getElementById('alerts-count').innerText = alerts.length;
                 const drawerList = document.getElementById('drawer-alerts-list');
@@ -803,7 +818,6 @@
                         </div>
                     `);
 
-                    // Add to bottom drawer
                     const item = document.createElement('div');
                     item.className = 'alert-card';
                     item.innerHTML = `
@@ -822,7 +836,7 @@
                     document.getElementById('corridor-drawer').style.display = 'block';
                 }
 
-                // 4. Update Route Summary UI Card
+                // 4. Update UI Summary
                 document.getElementById('eta-time').innerText = `${Math.round(data.duration_min)} min`;
                 document.getElementById('eta-distance').innerText = `(${data.distance_km} km)`;
                 document.getElementById('ai-summary-text').innerText = data.summary;
@@ -830,16 +844,46 @@
 
             } catch (err) {
                 console.error(err);
-                document.getElementById('ai-summary-text').innerText = 'Could not calculate road route. Please verify locations.';
             } finally {
                 btn.innerHTML = `<svg style="width:18px;height:18px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg><span>Route & Analyze Corridor</span>`;
                 btn.disabled = false;
             }
         }
 
-        document.getElementById('btn-analyze').addEventListener('click', calculateAndRenderRoute);
+        document.getElementById('btn-analyze').addEventListener('click', () => calculateAndRenderRoute(false));
 
-        // ── Real-Time GPS Tracking & User Movement ────────────────
+        // ── AUTONOMOUS LLM REFRESH TIMER (Runs Automatically) ────
+        let refreshSecondsRemaining = 120;
+        let activeIntervalSeconds = 120;
+
+        const intervalSelect = document.getElementById('refresh-interval-select');
+        const countdownDisplay = document.getElementById('countdown-timer');
+
+        intervalSelect.addEventListener('change', () => {
+            activeIntervalSeconds = parseInt(intervalSelect.value, 10);
+            refreshSecondsRemaining = activeIntervalSeconds;
+            updateCountdownBadge();
+        });
+
+        function updateCountdownBadge() {
+            const mins = Math.floor(refreshSecondsRemaining / 60);
+            const secs = refreshSecondsRemaining % 60;
+            countdownDisplay.innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        // Ticking interval running automatically without human intervention
+        setInterval(() => {
+            refreshSecondsRemaining -= 1;
+            if (refreshSecondsRemaining <= 0) {
+                // Time reached: trigger automated LLM route re-analysis
+                console.log('Automated interval elapsed: refreshing LLM intelligence...');
+                calculateAndRenderRoute(true);
+                refreshSecondsRemaining = activeIntervalSeconds;
+            }
+            updateCountdownBadge();
+        }, 1000);
+
+        // ── Real-Time GPS Tracking & Movement ─────────────────────
         const locateBtn = document.getElementById('locate-me-btn');
 
         function toggleGpsTracking() {
@@ -849,7 +893,6 @@
             }
 
             if (gpsWatchId !== null) {
-                // Stop GPS
                 navigator.geolocation.clearWatch(gpsWatchId);
                 gpsWatchId = null;
                 locateBtn.classList.remove('active');
@@ -883,14 +926,17 @@
                             weight: 1
                         }).addTo(map);
 
-                        map.setView([lat, lng], 15);
+                        // If within Chennai, center on user
+                        if (CHENNAI_BOUNDS.contains([lat, lng])) {
+                            map.setView([lat, lng], 15);
+                        }
                     } else {
                         userLocationMarker.setLatLng([lat, lng]);
                         userAccuracyCircle.setLatLng([lat, lng]);
                         userAccuracyCircle.setRadius(accuracy);
                     }
 
-                    userLocationMarker.bindPopup(`<b>Your Location</b><br>Accuracy: ±${Math.round(accuracy)}m`);
+                    userLocationMarker.bindPopup(`<b>Your GPS Location</b><br>Accuracy: ±${Math.round(accuracy)}m`);
                 },
                 (err) => {
                     console.warn('GPS Error:', err.message);
@@ -903,28 +949,10 @@
 
         locateBtn.addEventListener('click', toggleGpsTracking);
 
-        // ── Automated LLM Intelligence Poller ─────────────────────
-        async function fetchAutomatedIntelligence() {
-            try {
-                const res = await fetch('/api/corridor/latest');
-                if (!res.ok) return;
-                const data = await res.json();
-                if (data.status === 'ready' && data.corridors) {
-                    const count = Object.keys(data.corridors).length;
-                    document.getElementById('auto-status-text').innerText = `${count} Corridors Active (${data.provider_used.toUpperCase()})`;
-                }
-            } catch (e) {
-                console.debug('Autonomous poll:', e);
-            }
-        }
-
-        // Poll every 30s for automated background updates
-        setInterval(fetchAutomatedIntelligence, 30000);
-        fetchAutomatedIntelligence();
-
-        // Initial default calculation on page load
+        // Initial route calculation on boot
         window.addEventListener('load', () => {
-            calculateAndRenderRoute();
+            calculateAndRenderRoute(false);
+            updateCountdownBadge();
         });
     </script>
 </body>

@@ -259,15 +259,35 @@ class RouteHarvester:
 
     # ── Geocoding ──────────────────────────────────────────────
 
+    CHENNAI_BBOX = {
+        "min_lat": 12.70,
+        "max_lat": 13.40,
+        "min_lng": 79.90,
+        "max_lng": 80.40,
+    }
+
     def _geocode(self, location_str: str) -> GeoPoint:
         """
-        Converts a human-readable location string into coordinates.
-        Falls back to a Chennai-area default if geocoding fails.
+        Converts a human-readable location string into coordinates,
+        strictly bounded within the Chennai metropolitan territory.
         """
+        search_query = location_str.strip()
+        if "chennai" not in search_query.lower() and "madras" not in search_query.lower():
+            search_query += ", Chennai, Tamil Nadu"
+
         try:
-            result = self._geocoder.geocode(location_str)
+            result = self._geocoder.geocode(search_query)
             if result:
-                return GeoPoint(lat=result.latitude, lng=result.longitude)
+                lat = float(result.latitude)
+                lng = float(result.longitude)
+                # Verify strictly within Chennai bounds
+                if (
+                    self.CHENNAI_BBOX["min_lat"] <= lat <= self.CHENNAI_BBOX["max_lat"]
+                    and self.CHENNAI_BBOX["min_lng"] <= lng <= self.CHENNAI_BBOX["max_lng"]
+                ):
+                    return GeoPoint(lat=lat, lng=lng)
+                else:
+                    logger.warning("Location '%s' resolved to (%.4f, %.4f) outside Chennai; clamping.", location_str, lat, lng)
         except Exception as exc:
             logger.warning("Geocoding failed for '%s': %s", location_str, exc)
 
@@ -282,13 +302,18 @@ class RouteHarvester:
     def search_autocomplete(self, query: str, limit: int = 5) -> list[dict]:
         """
         Location search autofill / predictive place matching.
-        Uses Photon OpenStreetMap geocoding centered on Chennai.
+        Strictly filtered to the Chennai metropolitan radius.
         """
         if not query or len(query.strip()) < 2:
             return []
 
         try:
-            url = f"https://photon.komoot.io/api/?q={query.strip()}&lat=13.0827&lon=80.2707&limit={limit}"
+            url = (
+                f"https://photon.komoot.io/api/?q={query.strip()}"
+                f"&lat=13.0827&lon=80.2707"
+                f"&bbox=79.90,12.70,80.40,13.40"
+                f"&limit={limit}"
+            )
             headers = {"User-Agent": "CMI-Citizen-Mobility-Intelligence/1.0"}
             resp = httpx.get(url, headers=headers, timeout=3.5)
             if resp.status_code == 200:
@@ -303,13 +328,18 @@ class RouteHarvester:
                     subtitle = f"{district}, {city}".strip(", ")
 
                     if len(coords) == 2:
-                        results.append({
-                            "name": name,
-                            "subtitle": subtitle,
-                            "display_name": f"{name}, {subtitle}".strip(", "),
-                            "lat": coords[1],
-                            "lng": coords[0],
-                        })
+                        lng, lat = coords[0], coords[1]
+                        if (
+                            self.CHENNAI_BBOX["min_lat"] <= lat <= self.CHENNAI_BBOX["max_lat"]
+                            and self.CHENNAI_BBOX["min_lng"] <= lng <= self.CHENNAI_BBOX["max_lng"]
+                        ):
+                            results.append({
+                                "name": name,
+                                "subtitle": subtitle,
+                                "display_name": f"{name}, {subtitle}".strip(", "),
+                                "lat": lat,
+                                "lng": lng,
+                            })
                 return results
         except Exception as exc:
             logger.warning("Autocomplete search failed: %s", exc)
