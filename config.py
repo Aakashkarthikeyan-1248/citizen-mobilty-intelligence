@@ -111,11 +111,16 @@ def verify_workspace() -> dict[str, bool]:
     exists, creates any that are missing, and returns a report dict
     mapping directory names → whether they already existed.
 
-    Called once from main.py at application boot.
+    Wrapped in try-except to guarantee safety on read-only serverless
+    environments such as Vercel AWS Lambda (/var/task).
     """
     report: dict[str, bool] = {}
     for name, path in DIRS.items():
         existed = path.exists()
-        path.mkdir(parents=True, exist_ok=True)
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            # Serverless read-only filesystem (e.g. Vercel)
+            pass
         report[name] = existed
     return report

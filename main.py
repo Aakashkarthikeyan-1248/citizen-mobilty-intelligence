@@ -27,7 +27,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 # ── Configure logging before any engine imports ────────────────
 logging.basicConfig(
@@ -118,7 +118,7 @@ def create_app() -> FastAPI:
         """Serves the CMI landing page HTML shell."""
         index_path = static_dir / "index.html"
         if index_path.exists():
-            return FileResponse(str(index_path))
+            return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
         return {"message": "CMI API is running. Visit /docs for API documentation."}
 
     # ── Startup event ──────────────────────────────────────────
