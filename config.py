@@ -1,0 +1,121 @@
+"""
+============================================================
+CMI — Citizen Mobility Intelligence
+Configuration Module
+
+Centralizes all environment variables, paths, and application
+settings. Uses pydantic-settings for typed validation so that
+missing keys surface immediately at startup rather than at
+runtime deep inside a request handler.
+============================================================
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+from functools import lru_cache
+
+from pydantic_settings import BaseSettings
+from pydantic import Field
+
+
+# ── Resolve project root ──────────────────────────────────────
+PROJECT_ROOT = Path(__file__).resolve().parent
+
+# ── Directory contract ────────────────────────────────────────
+# Every sub-path the application may read/write is declared here
+# so that downstream modules never hard-code paths.
+DIRS = {
+    "root":       PROJECT_ROOT,
+    "engines":    PROJECT_ROOT / "engines",
+    "api":        PROJECT_ROOT / "api",
+    "static":     PROJECT_ROOT / "static",
+    "templates":  PROJECT_ROOT / "templates",
+    "data_raw":   PROJECT_ROOT / "data" / "raw",
+    "data_proc":  PROJECT_ROOT / "data" / "processed",
+    "data_cache": PROJECT_ROOT / "data" / "cache",
+    "scripts":    PROJECT_ROOT / "scripts",
+    "tests":      PROJECT_ROOT / "tests",
+}
+
+
+class Settings(BaseSettings):
+    """
+    Typed, validated application settings loaded from .env.
+    Pydantic-settings automatically reads a `.env` file in the
+    project root and maps UPPER_SNAKE keys to these fields.
+    """
+
+    # ── AI Provider Keys ──────────────────────────────────────
+    openai_api_key: str = Field(
+        default="",
+        description="OpenAI API key (Model A priority)",
+    )
+    nvidia_api_key: str = Field(
+        default="",
+        description="NVIDIA NIM / NGC API key for LLM inference (Model B priority)",
+    )
+    groq_api_key: str = Field(
+        default="",
+        description="Groq Cloud API key for ultra-fast LLM inference (Model C priority)",
+    )
+
+    # ── Geolocation ───────────────────────────────────────────
+    google_maps_api_key: str = Field(
+        default="",
+        description="Google Maps Platform key (Directions, Geocoding)",
+    )
+
+    # ── DevOps Metadata ───────────────────────────────────────
+    github_username: str = Field(default="Aakashkarthikeyan-1248")
+    github_repo_name: str = Field(default="citizen-mobility-intelligence")
+    vercel_account_id: str = Field(default="Aakash-1248")
+
+    # ── App Runtime ───────────────────────────────────────────
+    app_host: str = Field(default="0.0.0.0")
+    app_port: int = Field(default=8000)
+    app_env: str = Field(default="development")
+    log_level: str = Field(default="DEBUG")
+
+    # ── LLM Defaults ─────────────────────────────────────────
+    llm_timeout_seconds: float = Field(
+        default=30.0,
+        description="Per-provider HTTP timeout before fallback",
+    )
+    llm_max_retries: int = Field(
+        default=1,
+        description="Retries within a single provider before fallback",
+    )
+
+    model_config = {
+        "env_file": str(PROJECT_ROOT / ".env"),
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    """
+    Singleton accessor — ensures the .env file is parsed exactly once
+    and the resulting Settings object is reused across the application.
+    """
+    return Settings()
+
+
+def verify_workspace() -> dict[str, bool]:
+    """
+    Startup guard: verifies every directory in the DIRS contract
+    exists, creates any that are missing, and returns a report dict
+    mapping directory names → whether they already existed.
+
+    Called once from main.py at application boot.
+    """
+    report: dict[str, bool] = {}
+    for name, path in DIRS.items():
+        existed = path.exists()
+        path.mkdir(parents=True, exist_ok=True)
+        report[name] = existed
+    return report
