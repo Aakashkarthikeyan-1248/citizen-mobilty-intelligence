@@ -42,6 +42,7 @@ from config import get_settings, verify_workspace, DIRS
 from engines.text_isolation import TextIsolationEngine
 from engines.llm_router import LLMRouter
 from engines.route_harvester import RouteHarvester
+from engines.automation_scheduler import AutomationScheduler
 from api.routes import create_router
 
 
@@ -82,6 +83,14 @@ def create_app() -> FastAPI:
     )
     logger.info("RouteHarvester initialized")
 
+    # Background automated LLM scheduler (autonomous corridor refresh)
+    automation_scheduler = AutomationScheduler(
+        route_harvester=route_harvester,
+        llm_router=llm_router,
+        refresh_interval_seconds=300,  # 5 min periodic intervals
+    )
+    logger.info("AutomationScheduler initialized")
+
     # ── Step 4: Create FastAPI app ─────────────────────────────
     app = FastAPI(
         title="CMI — Citizen Mobility Intelligence",
@@ -90,7 +99,7 @@ def create_app() -> FastAPI:
             "Overlays traffic, construction, and hazard intelligence "
             "on an interactive map."
         ),
-        version="0.1.0",
+        version="0.2.0",
         docs_url="/docs",
         redoc_url="/redoc",
     )
@@ -99,6 +108,7 @@ def create_app() -> FastAPI:
     api_router = create_router(
         route_harvester=route_harvester,
         llm_router=llm_router,
+        automation_scheduler=automation_scheduler,
     )
     app.include_router(api_router)
 
@@ -130,6 +140,14 @@ def create_app() -> FastAPI:
         logger.info("API docs at http://%s:%d/docs",
                      settings.app_host, settings.app_port)
         logger.info("=" * 60)
+        # Start autonomous LLM intelligence background scheduler
+        automation_scheduler.start()
+
+    # ── Shutdown event ─────────────────────────────────────────
+    @app.on_event("shutdown")
+    async def on_shutdown():
+        logger.info("Stopping AutomationScheduler...")
+        automation_scheduler.stop()
 
     return app
 

@@ -1,34 +1,19 @@
 """
 ============================================================
 CMI — API Route Definitions
-
-FastAPI router that exposes the core CMI endpoints:
-
-  POST /api/route/analyze
-       Accepts origin + destination, runs the full corridor
-       analysis pipeline, and returns a structured JSON response
-       with an AI summary and geo-tagged alert markers.
-
-  GET  /api/health
-       Lightweight health check for monitoring and Vercel probes.
-
-  GET  /api/providers
-       Lists configured LLM providers and their status.
-
-All heavy lifting is delegated to the engine layer.
-The routes are thin HTTP adapters only.
 ============================================================
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Optional, Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("cmi.api.routes")
+
 
 # ── Request / Response Schemas ─────────────────────────────────
 
@@ -68,13 +53,30 @@ class RouteAnalysisResponse(BaseModel):
     provider: str = Field(description="Which LLM provider served the summary")
     bounding_box: dict = Field(description="Geographic bounding box of the corridor")
     alerts: list[AlertMarker] = Field(description="Geo-tagged alert markers")
+    route_geometry: list[list[float]] = Field(
+        default_factory=list,
+        description="Array of [lat, lng] coordinates following real roads for Google Maps polylines",
+    )
+    distance_km: float = Field(default=0.0, description="Driving route distance in kilometers")
+    duration_min: float = Field(default=0.0, description="Estimated transit duration in minutes")
+    origin_coords: dict = Field(default_factory=dict, description="Resolved lat/lng for origin")
+    destination_coords: dict = Field(default_factory=dict, description="Resolved lat/lng for destination")
+
+
+class PlaceSuggestion(BaseModel):
+    """Autocomplete location prediction."""
+    name: str
+    subtitle: str
+    display_name: str
+    lat: float
+    lng: float
 
 
 class HealthResponse(BaseModel):
     """Health check response."""
     status: str = "ok"
     service: str = "cmi"
-    version: str = "0.1.0"
+    version: str = "0.2.0"
 
 
 class ProviderInfo(BaseModel):
@@ -90,18 +92,11 @@ class ProviderInfo(BaseModel):
 def create_router(
     route_harvester,
     llm_router,
+    automation_scheduler=None,
 ) -> APIRouter:
     """
     Factory function that creates the API router with injected
-    engine dependencies. This pattern keeps the route definitions
-    decoupled from the engine instantiation in main.py.
-
-    Args:
-        route_harvester: A RouteHarvester instance.
-        llm_router:      An LLMRouter instance.
-
-    Returns:
-        A configured FastAPI APIRouter.
+    engine dependencies.
     """
     router = APIRouter(prefix="/api", tags=["CMI Core"])
 
@@ -109,21 +104,11 @@ def create_router(
     @router.post(
         "/route/analyze",
         response_model=RouteAnalysisResponse,
-        summary="Analyze a driving route corridor",
-        description=(
-            "Geocodes origin and destination, calculates a driving route, "
-            "harvests corridor alerts, and returns an AI-summarized analysis "
-            "with geo-tagged markers for the frontend map."
-        ),
+        summary="Analyze a driving route corridor with road polylines",
     )
     async def analyze_route(req: RouteAnalysisRequest):
-        """
-        Main endpoint — triggers the full corridor analysis pipeline.
-        """
-        logger.info(
-            "Route analysis requested: '%s' → '%s'",
-            req.origin, req.destination,
-        )
+        """Main endpoint — triggers the full road corridor analysis pipeline."""
+        logger.info("Route analysis requested: '%s' → '%s'", req.origin, req.destination)
 
         try:
             corridor_summary = await route_harvester.process(
@@ -137,11 +122,15 @@ def create_router(
                 detail=f"Analysis pipeline error: {str(exc)}",
             )
 
-        # Map dataclass output → Pydantic response model
         return RouteAnalysisResponse(
             summary=corridor_summary.summary_text,
             provider=corridor_summary.provider_used,
             bounding_box=corridor_summary.bounding_box,
+            distance_km=corridor_summary.distance_km,
+            duration_min=corridor_summary.duration_min,
+            origin_coords=corridor_summary.origin_coords,
+            destination_coords=corridor_summary.destination_coords,
+            route_geometry=corridor_summary.route_geometry,
             alerts=[
                 AlertMarker(
                     headline=a.headline,
@@ -157,26 +146,48 @@ def create_router(
             ],
         )
 
-    # ── GET /api/health ────────────────────────────────────────
+    # ── GET /api/places/autocomplete ───────────────────────────
     @router.get(
-        "/health",
-        response_model=HealthResponse,
-        summary="Service health check",
+        "/places/autocomplete",
+        response_model=list[PlaceSuggestion],
+        summary="Predictive place autocomplete search",
     )
+    async def autocomplete_places(q: str = Query(..., min_length=1, description="Search query")):
+        """Provides instant location predictions as the user types."""
+        results = route_harvester.search_autocomplete(query=q, limit=5)
+        return [PlaceSuggestion(**item) for item in results]
+
+    # ── GET /api/corridor/latest ───────────────────────────────
+    @router.get(
+        "/corridor/latest",
+        summary="Get latest automated corridor intelligence",
+    )
+    async def get_latest_intelligence():
+        """Returns the latest autonomous background LLM intelligence without delay."""
+        if automation_scheduler:
+            return automation_scheduler.get_status()
+        return {"status": "scheduler_not_initialized"}
+
+    # ── POST /api/automation/trigger ───────────────────────────
+    @router.post(
+        "/automation/trigger",
+        summary="Manually trigger an automated LLM harvest cycle",
+    )
+    async def trigger_automation():
+        """Force triggers an automated LLM intelligence refresh cycle."""
+        if automation_scheduler:
+            result = await automation_scheduler.execute_automation_cycle()
+            return {"status": "success", "result": result}
+        raise HTTPException(status_code=503, detail="Automation scheduler unavailable")
+
+    # ── GET /api/health ────────────────────────────────────────
+    @router.get("/health", response_model=HealthResponse)
     async def health_check():
-        """Returns service status for monitoring and deployment probes."""
         return HealthResponse()
 
     # ── GET /api/providers ─────────────────────────────────────
-    @router.get(
-        "/providers",
-        response_model=list[ProviderInfo],
-        summary="List configured LLM providers",
-    )
+    @router.get("/providers", response_model=list[ProviderInfo])
     async def list_providers():
-        """Returns the configured LLM providers and their status."""
-        return [
-            ProviderInfo(**p) for p in llm_router.list_providers()
-        ]
+        return [ProviderInfo(**p) for p in llm_router.list_providers()]
 
     return router

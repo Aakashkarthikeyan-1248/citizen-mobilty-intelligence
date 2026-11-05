@@ -99,3 +99,24 @@ def test_route_analyze_endpoint(test_app):
     assert len(data["alerts"]) > 0
     assert "bounding_box" in data
     assert "provider" in data
+    assert "route_geometry" in data
+    assert isinstance(data["route_geometry"], list)
+    assert len(data["route_geometry"]) > 0
+    assert "distance_km" in data
+    assert "duration_min" in data
+
+
+def test_autocomplete_endpoint(test_app, monkeypatch):
+    client = TestClient(test_app)
+    # Autocomplete test
+    response = client.get("/api/places/autocomplete?q=Chennai")
+    assert response.status_code == 200
+    suggestions = response.json()
+    assert isinstance(suggestions, list)
+
+
+def test_corridor_latest_endpoint(test_app):
+    client = TestClient(test_app)
+    response = client.get("/api/corridor/latest")
+    assert response.status_code == 200
+

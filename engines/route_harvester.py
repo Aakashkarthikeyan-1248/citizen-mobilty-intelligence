@@ -26,6 +26,7 @@ import math
 from dataclasses import dataclass, field
 from typing import Optional
 
+import httpx
 from shapely.geometry import LineString, Polygon, box, mapping
 from geopy.geocoders import Nominatim
 
@@ -71,12 +72,17 @@ class CorridorAlert:
 class CorridorSummary:
     """
     Final structured output sent to the frontend.
-    Contains a text summary and an array of geo-tagged alert markers.
+    Contains a text summary, route geometry, distance/duration, and geo-tagged alert markers.
     """
     summary_text: str
     alerts: list[CorridorAlert] = field(default_factory=list)
     bounding_box: dict = field(default_factory=dict)
     provider_used: str = ""
+    route_geometry: list[list[float]] = field(default_factory=list)  # [[lat, lng], ...]
+    distance_km: float = 0.0
+    duration_min: float = 0.0
+    origin_coords: dict = field(default_factory=dict)
+    destination_coords: dict = field(default_factory=dict)
 
     def to_json(self) -> str:
         """Serialize to JSON for the API response."""
@@ -85,6 +91,11 @@ class CorridorSummary:
                 "summary": self.summary_text,
                 "provider": self.provider_used,
                 "bounding_box": self.bounding_box,
+                "distance_km": self.distance_km,
+                "duration_min": self.duration_min,
+                "origin_coords": self.origin_coords,
+                "destination_coords": self.destination_coords,
+                "route_geometry": self.route_geometry,
                 "alerts": [
                     {
                         "headline": a.headline,
@@ -223,11 +234,27 @@ class RouteHarvester:
             summary_text = "AI summary unavailable. Raw alerts are displayed on the map."
             provider_used = "none (fallback)"
 
+        # Build polyline coordinate array [[lat, lng], ...] for frontend Google Maps rendering
+        route_coords = [[pt.lat, pt.lng] for pt in route.waypoints]
+        if not route_coords:
+            route_coords = [[origin_pt.lat, origin_pt.lng], [dest_pt.lat, dest_pt.lng]]
+        else:
+            # Ensure exact origin and destination are anchor points
+            if route_coords[0] != [origin_pt.lat, origin_pt.lng]:
+                route_coords.insert(0, [origin_pt.lat, origin_pt.lng])
+            if route_coords[-1] != [dest_pt.lat, dest_pt.lng]:
+                route_coords.append([dest_pt.lat, dest_pt.lng])
+
         return CorridorSummary(
             summary_text=summary_text,
             alerts=raw_alerts,
             bounding_box=bbox,
             provider_used=provider_used,
+            route_geometry=route_coords,
+            distance_km=round(route.distance_km, 1),
+            duration_min=round(route.duration_min, 0),
+            origin_coords={"lat": origin_pt.lat, "lng": origin_pt.lng},
+            destination_coords={"lat": dest_pt.lat, "lng": dest_pt.lng},
         )
 
     # ── Geocoding ──────────────────────────────────────────────
@@ -250,7 +277,46 @@ class RouteHarvester:
         )
         return GeoPoint(lat=13.0827, lng=80.2707)
 
-    # ── Route Fetching (Mock) ──────────────────────────────────
+    # ── Location Search Autocomplete (OSRM / Photon Engine) ───
+
+    def search_autocomplete(self, query: str, limit: int = 5) -> list[dict]:
+        """
+        Location search autofill / predictive place matching.
+        Uses Photon OpenStreetMap geocoding centered on Chennai.
+        """
+        if not query or len(query.strip()) < 2:
+            return []
+
+        try:
+            url = f"https://photon.komoot.io/api/?q={query.strip()}&lat=13.0827&lon=80.2707&limit={limit}"
+            headers = {"User-Agent": "CMI-Citizen-Mobility-Intelligence/1.0"}
+            resp = httpx.get(url, headers=headers, timeout=3.5)
+            if resp.status_code == 200:
+                features = resp.json().get("features", [])
+                results = []
+                for f in features:
+                    props = f.get("properties", {})
+                    coords = f.get("geometry", {}).get("coordinates", [])
+                    name = props.get("name") or props.get("street") or query
+                    city = props.get("city") or props.get("state") or props.get("country") or "Chennai"
+                    district = props.get("district") or props.get("suburb") or ""
+                    subtitle = f"{district}, {city}".strip(", ")
+
+                    if len(coords) == 2:
+                        results.append({
+                            "name": name,
+                            "subtitle": subtitle,
+                            "display_name": f"{name}, {subtitle}".strip(", "),
+                            "lat": coords[1],
+                            "lng": coords[0],
+                        })
+                return results
+        except Exception as exc:
+            logger.warning("Autocomplete search failed: %s", exc)
+
+        return []
+
+    # ── Route Fetching (OSRM Road Engine + Geometric Fallback) ──
 
     def _fetch_route(
         self,
@@ -258,30 +324,53 @@ class RouteHarvester:
         destination: GeoPoint,
     ) -> RouteSegment:
         """
-        MOCK: Generates a straight-line route with intermediate
-        waypoints between origin and destination.
-
-        In production, replace this with a call to:
-          - Google Maps Directions API
-          - OSRM
-          - Valhalla
-          - Mapbox Directions
-        and decode the returned polyline.
+        Fetches true turn-by-turn driving road coordinates via OSRM,
+        mapping lines directly onto real highway/road polylines like Google Maps.
+        Falls back to sinusoidal curve waypoints if OSRM is unreachable.
         """
-        num_waypoints = 20
+        try:
+            url = (
+                f"https://router.project-osrm.org/route/v1/driving/"
+                f"{origin.lng},{origin.lat};{destination.lng},{destination.lat}"
+                f"?overview=full&geometries=geojson"
+            )
+            headers = {"User-Agent": "CMI-Citizen-Mobility-Intelligence/1.0"}
+            resp = httpx.get(url, headers=headers, timeout=4.0)
+            if resp.status_code == 200:
+                data = resp.json()
+                routes = data.get("routes", [])
+                if routes:
+                    r = routes[0]
+                    coords = r.get("geometry", {}).get("coordinates", [])
+                    dist_km = r.get("distance", 0.0) / 1000.0
+                    dur_min = r.get("duration", 0.0) / 60.0
+
+                    waypoints = [GeoPoint(lat=c[1], lng=c[0]) for c in coords]
+                    logger.info("OSRM road route fetched: %d road coordinates, %.1f km, %.1f min",
+                                len(waypoints), dist_km, dur_min)
+                    return RouteSegment(
+                        origin=origin,
+                        destination=destination,
+                        waypoints=waypoints,
+                        distance_km=dist_km,
+                        duration_min=dur_min,
+                    )
+        except Exception as exc:
+            logger.warning("OSRM road fetch failed (%s), using geometric fallback", exc)
+
+        # Fallback: sinusoidal curve simulation
+        num_waypoints = 30
         waypoints = []
 
         for i in range(1, num_waypoints + 1):
             frac = i / (num_waypoints + 1)
             lat = origin.lat + frac * (destination.lat - origin.lat)
             lng = origin.lng + frac * (destination.lng - origin.lng)
-            # Add slight sinusoidal offset to simulate road curvature
             offset = 0.005 * math.sin(frac * math.pi * 3)
             waypoints.append(GeoPoint(lat=lat + offset, lng=lng - offset))
 
-        # Rough distance estimate (haversine)
-        dist_km = self._haversine(origin, destination)
-        duration_min = dist_km / 25.0 * 60  # Assume avg 25 km/h in Chennai
+        dist_km = self._haversine(origin, destination) * 1.25
+        duration_min = dist_km / 25.0 * 60
 
         return RouteSegment(
             origin=origin,
