@@ -76,8 +76,8 @@
  */
 
 // ── FILL THESE IN ────────────────────────────────────────────
-const SUPABASE_URL  = 'https://YOUR_PROJECT_ID.supabase.co';
-const SUPABASE_ANON = 'YOUR_ANON_PUBLIC_KEY';
+const SUPABASE_URL  = 'https://wuqkasfqcksgayyamvma.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_6rXTJ2XpsEoDlslFqixhHQ_uy7pGqsC';
 // ─────────────────────────────────────────────────────────────
 
 const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);

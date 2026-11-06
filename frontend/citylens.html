@@ -2032,5 +2032,272 @@
 
     init();
   </script>
+
+  <!-- =====================================================
+       SUPABASE INTEGRATION — CityLens Database Layer
+       Project: https://wuqkasfqcksgayyamvma.supabase.co
+       All incident reports, users, and credits are
+       stored in Supabase and shared in real-time.
+       ===================================================== -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    /* ================================================================
+       Supabase integration — overrides the localStorage Store object
+       with a Supabase-backed version that keeps localStorage as a
+       fast-access cache and syncs every write to the cloud.
+       ================================================================ */
+    (async function initSupabaseLayer() {
+
+      if (!window.supabase) {
+        console.warn('[CMI-Supabase] Library not loaded.');
+        return;
+      }
+
+      const _sb = window.supabase.createClient(
+        'https://wuqkasfqcksgayyamvma.supabase.co',
+        'sb_publishable_6rXTJ2XpsEoDlslFqixhHQ_uy7pGqsC'
+      );
+      window._supabase = _sb;   // expose for DevTools debugging
+
+      // ── Converter helpers (camelCase ↔ snake_case) ───────────────
+
+      function incToRow(i) {
+        return {
+          id:          i.id,
+          title:       i.title,
+          cat:         i.cat,
+          sev:         i.sev,
+          loc:         i.loc || '',
+          lat:         i.lat,
+          lng:         i.lng,
+          source:      i.source,
+          reporter_id: i.reporterId || null,
+          description: i.description || null,
+          photo_url:   i.photo    || null,
+          confidence:  typeof i.confidence === 'number' ? i.confidence : null,
+          status:      i.status,
+          verified_by: i.verifiedBy || [],
+          history:     i.history    || [],
+          reported_at: new Date(i.reportedAt).toISOString(),
+        };
+      }
+
+      function rowToInc(r) {
+        return {
+          id:          r.id,
+          title:       r.title,
+          cat:         r.cat,
+          sev:         r.sev,
+          loc:         r.loc,
+          lat:         r.lat,
+          lng:         r.lng,
+          source:      r.source,
+          reporterId:  r.reporter_id,
+          description: r.description,
+          photo:       r.photo_url,
+          confidence:  r.confidence,
+          status:      r.status,
+          verifiedBy:  r.verified_by || [],
+          history:     r.history     || [],
+          reportedAt:  new Date(r.reported_at).getTime(),
+        };
+      }
+
+      function userToRow(u) {
+        return {
+          id:          u.id,
+          name:        u.name,
+          email:       u.email,
+          role:        u.role     || 'citizen',
+          status:      u.status   || 'active',
+          employee_id: u.employeeId || null,
+          salt:        u.salt || null,
+          hash:        u.hash || null,
+        };
+      }
+
+      function rowToUser(r) {
+        // Merge with local record to preserve salt/hash for browser auth fallback
+        const local = readKey('users', []).find(u => u.id === r.id) || {};
+        return {
+          ...local,
+          id:         r.id,
+          name:       r.name,
+          email:      r.email,
+          role:       r.role,
+          status:     r.status,
+          employeeId: r.employee_id,
+        };
+      }
+
+      // ── Override Store.getIncidents ──────────────────────────────
+
+      Store.getIncidents = async function() {
+        try {
+          const { data, error } = await _sb
+            .from('cmi_incidents')
+            .select('*')
+            .order('reported_at', { ascending: false });
+          if (error) throw error;
+          return (data || []).map(rowToInc);
+        } catch(e) {
+          console.warn('[CMI-Supabase] getIncidents fallback:', e.message);
+          return readKey('incidents', []);
+        }
+      };
+
+      // ── Override Store.saveIncidents ─────────────────────────────
+      // Called by commitIncidents() after every change.
+      // Keeps localStorage as a cache; upserts each row to Supabase.
+
+      Store.saveIncidents = async function(incidents) {
+        writeKey('incidents', incidents);            // fast local cache
+        try {
+          for (const inc of incidents) {
+            const { error } = await _sb
+              .from('cmi_incidents')
+              .upsert(incToRow(inc), { onConflict: 'id' });
+            if (error) console.warn('[CMI-Supabase] incident upsert:', error.message);
+          }
+        } catch(e) {
+          console.warn('[CMI-Supabase] saveIncidents:', e.message);
+        }
+      };
+
+      // ── Override Store.getUsers ──────────────────────────────────
+
+      Store.getUsers = async function() {
+        try {
+          const { data, error } = await _sb.from('cmi_users').select('*');
+          if (error) throw error;
+          return (data || []).map(rowToUser);
+        } catch(e) {
+          console.warn('[CMI-Supabase] getUsers fallback:', e.message);
+          return readKey('users', []);
+        }
+      };
+
+      // ── Override Store.saveUsers ─────────────────────────────────
+
+      Store.saveUsers = async function(users) {
+        writeKey('users', users);
+        try {
+          for (const u of users) {
+            const { error } = await _sb
+              .from('cmi_users')
+              .upsert(userToRow(u), { onConflict: 'id' });
+            if (error) console.warn('[CMI-Supabase] user upsert:', error.message);
+          }
+        } catch(e) {
+          console.warn('[CMI-Supabase] saveUsers:', e.message);
+        }
+      };
+
+      // ── Override Store.addCredit ─────────────────────────────────
+      // Idempotent: event_id is the PK in cmi_ledger.
+
+      Store.addCredit = async function(entry) {
+        const ledger = readKey('ledger', []);
+        if (ledger.some(e => e.id === entry.id)) return false;
+        ledger.push({ ...entry, at: Date.now() });
+        writeKey('ledger', ledger);
+        try {
+          await _sb.from('cmi_ledger').upsert(
+            { event_id: entry.id, user_id: entry.userId,
+               amount: entry.amount, reason: entry.reason || '' },
+            { onConflict: 'event_id', ignoreDuplicates: true }
+          );
+        } catch(e) {
+          console.warn('[CMI-Supabase] addCredit:', e.message);
+        }
+        return true;
+      };
+
+      // ── Seed demo data to Supabase if table is empty ─────────────
+
+      async function seedToSupabase() {
+        try {
+          const { count, error } = await _sb
+            .from('cmi_incidents')
+            .select('id', { count: 'exact', head: true });
+          if (error) throw error;
+          if (!count || count === 0) {
+            console.log('[CMI-Supabase] Empty table — seeding demo incidents...');
+            for (const inc of seedIncidents()) {
+              const { error: e2 } = await _sb
+                .from('cmi_incidents')
+                .upsert(incToRow(inc), { onConflict: 'id' });
+              if (e2) console.warn('[CMI-Supabase] seed error:', e2.message);
+            }
+            console.log('[CMI-Supabase] Seeded 7 demo incidents.');
+          }
+        } catch(e) {
+          console.warn('[CMI-Supabase] seedToSupabase:', e.message);
+        }
+      }
+
+      async function seedUsersToSupabase() {
+        try {
+          const localUsers = readKey('users', []);
+          for (const u of localUsers) {
+            const { error } = await _sb
+              .from('cmi_users')
+              .upsert(userToRow(u), { onConflict: 'id' });
+            if (error) console.warn('[CMI-Supabase] user seed error:', error.message);
+          }
+        } catch(e) {
+          console.warn('[CMI-Supabase] seedUsersToSupabase:', e.message);
+        }
+      }
+
+      // ── Real-time listener (live updates from other users) ────────
+
+      _sb.channel('cmi-incidents-live')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'cmi_incidents' },
+          async () => {
+            state.incidents = await Store.getIncidents();
+            writeKey('incidents', state.incidents);
+            if (state.currentPage === 'map')     { renderFeed(); renderMarkers(); }
+            if (state.currentPage === 'landing') { renderLandingStats(); }
+            if (state.currentPage === 'route')   { /* route page doesn't auto-refresh */ }
+          }
+        )
+        .subscribe(status => {
+          if (status === 'SUBSCRIBED') {
+            console.log('[CMI-Supabase] Real-time channel active');
+          }
+        });
+
+      // ── Reload all state from Supabase ───────────────────────────
+
+      try {
+        await seedToSupabase();
+        await seedUsersToSupabase();
+
+        state.incidents = await Store.getIncidents();
+        state.users     = await Store.getUsers();
+        state.ledger    = await Store.getLedger();
+
+        // Re-render the current visible page with fresh Supabase data
+        await refreshAll();
+        if (state.currentPage === 'landing') renderLandingStats();
+        if (state.currentPage === 'map')     { renderFeed(); renderMarkers(); }
+
+        console.log(
+          '[CMI-Supabase] Connected.',
+          'Incidents:', state.incidents.length,
+          '| Users:', state.users.length
+        );
+        toast('Supabase connected — live data loaded (' + state.incidents.length + ' incidents)', 'success');
+      } catch(e) {
+        console.error('[CMI-Supabase] Init error:', e);
+        toast('Supabase connection failed — using local data', 'warn');
+      }
+
+    })();
+  </script>
+
 </body>
 </html>
