@@ -144,7 +144,12 @@ def create_app() -> FastAPI:
         for candidate_dir in [static_dir / "assets", DIRS["root"] / "public" / "assets"]:
             candidate = candidate_dir / filename
             if candidate.exists() and candidate.is_file():
-                media_type = "image/png" if filename.endswith(".png") else "application/octet-stream"
+                if filename.endswith((".jpg", ".jpeg")):
+                    media_type = "image/jpeg"
+                elif filename.endswith(".png"):
+                    media_type = "image/png"
+                else:
+                    media_type = "application/octet-stream"
                 return FileResponse(str(candidate), media_type=media_type)
         return Response(status_code=404)
 
