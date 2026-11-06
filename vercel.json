@@ -3,14 +3,12 @@
   "builds": [
     {
       "src": "main.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxDuration": 60
+      }
     }
   ],
-  "functions": {
-    "main.py": {
-      "maxDuration": 60
-    }
-  },
   "routes": [
     {
       "src": "/static/(.*)",
@@ -18,7 +16,7 @@
     },
     {
       "src": "/assets/(.*)",
-      "dest": "/public/assets/$1"
+      "dest": "/static/assets/$1"
     },
     {
       "src": "/(.*)",
