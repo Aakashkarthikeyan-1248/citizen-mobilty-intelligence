@@ -1,0 +1,2327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="CityLens Chennai: report and confirm road hazards, view a live incident map and get hazard-aware routes.">
+  <title>CityLens — Chennai Mobility Intelligence</title>
+
+  <!-- LEAFLET MAP ENGINE (free, no key). If this CDN fails the app shows a banner and the feed/report/route summary keep working. -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --admin: #7e22ce;
+      --admin-dark: #6b21a8;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-alt: #f1f5f9;
+      --text: #0f172a;
+      --text-muted: #475569;
+      --border: #cbd5e1;
+      --danger: #b91c1c;
+      --focus: #1d4ed8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    [hidden] { display: none !important; }
+    html, body { height: 100%; }
+    body { background: var(--bg); color: var(--text); display: flex; flex-direction: column; overflow: hidden; font-size: 15px; line-height: 1.5; }
+
+    :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    .skip-link { position: absolute; left: 12px; top: -60px; background: var(--text); color: #fff; padding: 10px 14px; border-radius: 8px; z-index: 3000; text-decoration: none; font-weight: 700; }
+    .skip-link:focus { top: 12px; }
+    h1:focus, h2:focus, h3:focus { outline: none; }
+
+    /* ---------- Header ---------- */
+    header { min-height: 60px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 20px; z-index: 1000; flex-wrap: wrap; }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--text); background: none; border: 0; cursor: pointer; padding: 6px; border-radius: 8px; }
+    .logo-icon { width: 34px; height: 34px; background: var(--primary); color: #fff; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .logo-icon.big { width: 56px; height: 56px; font-size: 28px; margin-bottom: 16px; }
+    nav { display: flex; gap: 6px; overflow-x: auto; max-width: 100%; }
+    .nav-btn { min-height: 40px; padding: 8px 14px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--text-muted); font-weight: 600; font-size: 14px; cursor: pointer; white-space: nowrap; }
+    .nav-btn:hover { background: var(--surface-alt); color: var(--text); }
+    .nav-btn.active { background: #eff6ff; color: var(--primary-dark); border-color: #bfdbfe; }
+    .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .badge-credits { background: #dcfce7; color: #14532d; border: 1px solid #bbf7d0; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+    .user-name { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+    .link-danger { background: none; border: 0; color: var(--danger); font-size: 13px; font-weight: 700; cursor: pointer; min-height: 40px; padding: 0 6px; }
+
+    /* ---------- Banner & toasts ---------- */
+    .banner { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 16px; font-size: 13px; font-weight: 600; background: #fef3c7; color: #78350f; border-bottom: 1px solid #fcd34d; }
+    .banner.error { background: #fee2e2; color: #7f1d1d; border-color: #fca5a5; }
+    .banner button { background: none; border: 0; font-size: 18px; cursor: pointer; color: inherit; min-width: 32px; min-height: 32px; }
+    .toast-region { position: fixed; bottom: 16px; right: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 4000; max-width: min(360px, calc(100vw - 32px)); }
+    .toast { background: var(--text); color: #fff; padding: 12px 16px; border-radius: 10px; font-size: 14px; box-shadow: 0 8px 20px rgba(0,0,0,.2); }
+    .toast-success { background: #14532d; }
+    .toast-error { background: #7f1d1d; }
+    .toast-warn { background: #78350f; }
+
+    /* ---------- Page containers ---------- */
+    main { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+    .page { display: none; width: 100%; height: 100%; min-height: 0; }
+    .page.active { display: flex; }
+
+    .auth-container { flex-direction: column; align-items: center; justify-content: center; padding: 32px 16px; background: var(--surface-alt); overflow-y: auto; }
+    .auth-box { background: var(--surface); padding: 36px; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 10px 25px rgba(0,0,0,.05); width: 100%; max-width: 440px; }
+    .auth-header { text-align: center; margin-bottom: 20px; }
+    .auth-header h1 { font-size: 26px; font-weight: 800; margin-bottom: 8px; }
+    .auth-header p { font-size: 14px; color: var(--text-muted); }
+    .gateway-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; max-width: 500px; width: 100%; }
+    .gateway-card { background: var(--surface); border: 2px solid var(--border); border-radius: 12px; padding: 24px 16px; text-align: center; cursor: pointer; display: flex; flex-direction: column; gap: 6px; align-items: center; color: var(--text); }
+    .gateway-card:hover { border-color: var(--primary); background: #eff6ff; }
+    .gateway-card .icon { font-size: 32px; }
+    .gateway-card .gc-title { font-size: 16px; font-weight: 700; }
+    .gateway-card .gc-desc { font-size: 13px; color: var(--text-muted); }
+    .build-note { margin-top: 24px; font-size: 13px; color: var(--text-muted); text-align: center; max-width: 480px; }
+    .link-btn { display: block; width: 100%; background: none; border: 0; color: var(--primary-dark); font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; margin-top: 12px; padding: 8px; min-height: 40px; }
+    .link-btn:hover { text-decoration: underline; }
+    .link-btn.muted { color: var(--text-muted); }
+    .link-btn.admin { color: var(--admin-dark); }
+    .demo-hint { font-size: 12px; background: #f5f3ff; color: var(--admin-dark); border: 1px dashed #c4b5fd; padding: 8px 10px; border-radius: 8px; margin-top: 14px; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label, .field-label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+    .form-control { width: 100%; padding: 11px 14px; border-radius: 8px; border: 1px solid var(--border); font-size: 15px; background: #fff; min-height: 44px; color: var(--text); }
+    .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px #dbeafe; outline: none; }
+    .form-control[aria-invalid="true"] { border-color: var(--danger); }
+    textarea.form-control { min-height: 96px; resize: vertical; }
+    .hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .field-error { color: var(--danger); font-size: 13px; font-weight: 600; margin-top: 4px; }
+    .form-alert { padding: 10px 12px; border-radius: 8px; font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+    .form-alert.error { background: #fee2e2; color: #7f1d1d; }
+    .form-alert.success { background: #dcfce7; color: #14532d; }
+    .form-alert.info { background: #e0f2fe; color: #075985; }
+    .form-alert.warn { background: #fef3c7; color: #78350f; }
+
+    .btn-primary { background: var(--primary); color: #fff; border: none; padding: 12px 22px; border-radius: 8px; font-weight: 700; font-size: 15px; cursor: pointer; min-height: 44px; width: 100%; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-primary:disabled { opacity: .6; cursor: wait; }
+    .btn-primary.admin { background: var(--admin); }
+    .btn-primary.admin:hover { background: var(--admin-dark); }
+    .btn-primary.btn-wide { width: auto; }
+    .btn-primary.btn-compact, .btn-small { width: auto; padding: 8px 12px; min-height: 36px; font-size: 13px; }
+    .btn-outline { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 12px 22px; border-radius: 8px; font-weight: 700; font-size: 15px; cursor: pointer; min-height: 44px; }
+    .btn-outline:hover { background: #f8fafc; }
+    .btn-outline.btn-compact { padding: 8px 12px; min-height: 36px; font-size: 13px; }
+    .btn-small { background: #eff6ff; color: var(--primary-dark); border: 1px solid #bfdbfe; border-radius: 6px; font-weight: 700; cursor: pointer; }
+    .btn-small:hover { background: #dbeafe; }
+    .btn-small:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-small.btn-ghost { background: var(--surface); color: var(--text); border-color: var(--border); }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
+
+    /* ---------- Landing ---------- */
+    .page-center { flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; text-align: center; overflow-y: auto; }
+    .hero-tag { background: #eff6ff; color: var(--primary-dark); border: 1px solid #bfdbfe; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; margin-bottom: 20px; }
+    .hero-title { font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px; max-width: 800px; }
+    .hero-title span { color: var(--primary-dark); }
+    .hero-desc { font-size: 17px; color: var(--text-muted); max-width: 600px; margin-bottom: 28px; }
+    .btn-group { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    .stats { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin: 28px 0; }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 22px; min-width: 150px; }
+    .stat dt { font-size: 12px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+    .stat dd { font-size: 26px; font-weight: 800; }
+    .status-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; max-width: 720px; width: 100%; text-align: left; }
+    .status-card h2 { font-size: 17px; margin-bottom: 10px; }
+    .status-card ul { padding-left: 20px; font-size: 14px; color: var(--text-muted); display: flex; flex-direction: column; gap: 6px; }
+    .status-card strong { color: var(--text); }
+
+    /* ---------- Map page ---------- */
+    #page-map.active { display: grid; grid-template-columns: minmax(0,1fr) 380px; grid-template-rows: minmax(0,1fr); }
+    .map-wrapper { position: relative; min-height: 0; height: 100%; }
+    .map-el { width: 100%; height: 100%; background: #e2e8f0; z-index: 1; }
+    .map-controls-panel { position: absolute; top: 12px; left: 60px; z-index: 500; display: flex; flex-direction: column; gap: 8px; max-width: min(460px, calc(100% - 80px)); }
+    .map-search-box { display: flex; background: rgba(255,255,255,.97); padding: 4px; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+    .map-search-box input { flex: 1; min-width: 0; border: none; padding: 8px 12px; font-size: 14px; outline: none; background: transparent; min-height: 40px; }
+    .map-search-box button { background: var(--primary); color: #fff; border: none; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer; min-height: 40px; }
+    .filter-bar { display: flex; gap: 6px; flex-wrap: wrap; background: rgba(255,255,255,.97); padding: 6px; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+    .filter-bar label { font-size: 11px; font-weight: 700; color: var(--text-muted); display: flex; flex-direction: column; gap: 2px; }
+    .filter-bar select { font-size: 12px; padding: 5px 6px; border-radius: 6px; border: 1px solid var(--border); min-height: 32px; background: #fff; color: var(--text); }
+    .layer-toggle-bar { display: flex; gap: 6px; flex-wrap: wrap; background: rgba(255,255,255,.97); padding: 6px; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+    .layer-btn { font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: #fff; cursor: pointer; min-height: 34px; }
+    .layer-btn[aria-pressed="true"] { background: #eff6ff; color: var(--primary-dark); border-color: #bfdbfe; }
+    .weather-widget { position: absolute; bottom: 20px; left: 12px; z-index: 500; background: rgba(15,23,42,.9); color: #fff; padding: 8px 14px; border-radius: 10px; font-size: 12px; display: flex; align-items: center; gap: 8px; }
+    .legend { position: absolute; bottom: 20px; right: 12px; z-index: 500; background: rgba(255,255,255,.97); padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.1); display: flex; flex-direction: column; gap: 4px; max-width: 220px; }
+    .legend h2 { font-size: 12px; font-weight: 800; margin-bottom: 2px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; }
+    .swatch { width: 14px; height: 14px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .api-key-drawer { position: absolute; top: 12px; right: 12px; z-index: 500; background: rgba(255,255,255,.97); padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.1); max-width: 280px; }
+    .api-key-drawer summary { cursor: pointer; font-weight: 700; color: var(--primary-dark); min-height: 32px; }
+    .api-key-drawer .keys { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+    .popup p { font-size: 13px; margin-bottom: 6px; }
+
+    .sidebar { background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+    .sidebar-header { padding: 16px; border-bottom: 1px solid var(--border); }
+    .sidebar-title { font-weight: 700; font-size: 16px; }
+    .sidebar-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    #feed-view, #detail-view { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+    .feed-list { flex: 1; overflow-y: auto; padding: 12px; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .detail-body { flex: 1; overflow-y: auto; padding: 16px; }
+    .detail-title { font-size: 18px; margin-bottom: 8px; }
+    .detail-desc { font-size: 14px; margin: 10px 0; }
+    .detail-list { margin: 12px 0; }
+    .detail-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--surface-alt); font-size: 13px; }
+    .detail-row dt { color: var(--text-muted); font-weight: 600; }
+    .detail-row dd { text-align: right; font-weight: 600; }
+    .evidence { width: 100%; max-height: 220px; object-fit: cover; border-radius: 8px; margin: 8px 0; border: 1px solid var(--border); }
+    .history { padding-left: 18px; font-size: 13px; color: var(--text-muted); display: flex; flex-direction: column; gap: 6px; }
+    .empty { color: var(--text-muted); font-size: 14px; padding: 20px; text-align: center; list-style: none; }
+
+    /* ---------- Cards & chips & badges ---------- */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; list-style: none; }
+    .card:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,.05); }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+    .card-title { font-weight: 700; font-size: 15px; }
+    .card-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+    .card-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); margin-top: 10px; flex-wrap: wrap; }
+    .card-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .badge-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+    .chip { font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+    .chip-critical { background: #fee2e2; color: #991b1b; }
+    .chip-high { background: #ffedd5; color: #9a3412; }
+    .chip-medium { background: #fef3c7; color: #92400e; }
+    .badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+    .status-pending { background: #e0e7ff; color: #3730a3; }
+    .status-verified { background: #dcfce7; color: #166534; }
+    .status-acknowledged { background: #e0f2fe; color: #075985; }
+    .status-in_progress { background: #fef9c3; color: #854d0e; }
+    .status-resolved { background: #e2e8f0; color: #334155; }
+    .status-reopened { background: #fee2e2; color: #991b1b; }
+    .src-citizen { background: var(--surface-alt); color: #334155; }
+    .src-ai { background: #f3e8ff; color: var(--admin-dark); border: 1px dashed #a855f7; }
+    .src-official { background: #dbeafe; color: #1e40af; }
+
+    /* ---------- Form pages ---------- */
+    .page-scroll { flex-direction: column; padding: 32px; overflow-y: auto; max-width: 900px; margin: 0 auto; width: 100%; }
+    #page-route.page-scroll { max-width: 1100px; }
+    .page-scroll h1 { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+    .muted { color: var(--text-muted); font-size: 14px; margin-bottom: 18px; }
+    .form-box, .panel { background: var(--surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
+    .panel h2 { font-size: 18px; margin-bottom: 12px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    fieldset { border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+    legend { font-size: 13px; font-weight: 800; padding: 0 6px; }
+    .loc-tools { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+    .loc-tools .form-control { flex: 1; min-width: 180px; }
+    .map-picker { width: 100%; height: 300px; border-radius: 8px; border: 1px solid var(--border); background: #e2e8f0; margin-top: 8px; }
+    .pin-status { font-size: 13px; margin: 8px 0; font-weight: 600; color: var(--text-muted); }
+    .pin-status.ok { color: #166534; }
+    .pin-status.error { color: var(--danger); }
+    .dup-panel { border: 1px solid #fcd34d; background: #fffbeb; border-radius: 10px; padding: 14px; margin-bottom: 16px; }
+    .dup-panel h3 { font-size: 15px; margin-bottom: 6px; }
+    .dup-list { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .dup-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 14px; flex-wrap: wrap; }
+
+    /* Route page */
+    .route-layout { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); gap: 16px; align-items: start; }
+    .map-route { width: 100%; height: 420px; border-radius: 12px; border: 1px solid var(--border); background: #e2e8f0; }
+    #route-results { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; min-height: 200px; }
+    #route-results h2 { font-size: 17px; margin-bottom: 6px; }
+    .rec-summary { font-size: 14px; margin-bottom: 12px; }
+    .route-list { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; font-size: 14px; }
+    .route-list li { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+    .route-list li.recommended { border-color: var(--primary); background: #eff6ff; }
+    #route-results h3 { font-size: 14px; margin: 8px 0 4px; }
+
+    /* Admin */
+    .filter-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+    .filter-row label { font-size: 13px; font-weight: 700; }
+    .filter-row select { min-width: 200px; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    th { background: #f8fafc; font-weight: 700; color: var(--text-muted); font-size: 13px; }
+    .danger-zone { margin-top: 12px; }
+    #admin-detail .history li { margin-bottom: 2px; }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 900px) {
+      body { overflow: auto; height: auto; min-height: 100%; }
+      main { overflow: visible; }
+      header { padding: 8px 12px; }
+      nav { width: 100%; order: 3; }
+      .header-right { width: 100%; justify-content: space-between; }
+      .hero-title { font-size: 30px; }
+      .gateway-cards, .form-row, .route-layout { grid-template-columns: 1fr; }
+      .page-scroll { padding: 20px 14px; }
+      .page-center { padding: 28px 14px; }
+      #page-map.active { grid-template-columns: 1fr; grid-template-rows: auto; }
+      .map-wrapper { height: 62vh; min-height: 420px; }
+      .sidebar { border-left: 0; border-top: 1px solid var(--border); min-height: 60vh; }
+      .map-controls-panel { left: 10px; right: 10px; max-width: none; top: 10px; }
+      .map-controls-panel .map-search-box { order: 1; }
+      .legend { display: none; }
+      .api-key-drawer { top: auto; bottom: 64px; right: 10px; max-width: calc(100% - 20px); }
+      .weather-widget { bottom: 12px; left: 10px; font-size: 11px; }
+      .map-route { height: 320px; }
+      .auth-box { padding: 24px; }
+      .btn-primary.btn-wide { width: 100%; }
+
+      /* Admin table becomes stacked cards */
+      table, thead, tbody, tr, td, th { display: block; }
+      thead { position: absolute; left: -9999px; }
+      tr { border-bottom: 1px solid var(--border); padding: 8px 0; }
+      td { border: 0; padding: 6px 12px; display: flex; justify-content: space-between; gap: 12px; }
+      td::before { content: attr(data-label); font-weight: 700; color: var(--text-muted); font-size: 12px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <!-- Global banner (map failures, storage problems, secure-context warnings) -->
+  <div id="app-banner" class="banner" role="status" hidden>
+    <span id="banner-text"></span>
+    <button type="button" id="banner-close" aria-label="Dismiss message">×</button>
+  </div>
+
+  <!-- HEADER (only shown when logged in) -->
+  <header id="app-header" hidden>
+    <button class="logo" type="button" data-nav="landing" aria-label="CityLens home">
+      <span class="logo-icon" aria-hidden="true">📍</span>
+      <span>CityLens Chennai</span>
+    </button>
+    <nav aria-label="Main">
+      <button class="nav-btn" type="button" data-nav="landing">Home</button>
+      <button class="nav-btn" type="button" data-nav="map">Live Map</button>
+      <button class="nav-btn" type="button" data-nav="report" data-citizen-only>Report Incident</button>
+      <button class="nav-btn" type="button" data-nav="route">Smart Route</button>
+      <button class="nav-btn" type="button" data-nav="admin" data-admin-only hidden>Admin Center</button>
+      <a href="/cmi" class="nav-btn" style="text-decoration:none; color:#1a73e8; font-weight:700; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; display:inline-flex; align-items:center; gap:4px;"><span>🧭 CMI AI Map</span></a>
+    </nav>
+    <div class="header-right">
+      <div class="badge-credits" id="credit-badge" title="Credits are earned by reporting (+10) and confirming (+10) hazards.">🏆 <span id="user-credits">0</span> Credits</div>
+      <span class="user-name" id="user-name"></span>
+      <button class="link-danger" id="btn-logout" type="button">Log out</button>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+
+    <!-- ============================================== -->
+    <!-- AUTHENTICATION PAGES                           -->
+    <!-- ============================================== -->
+
+    <!-- Gateway -->
+    <section class="page auth-container active" id="page-auth-gateway" aria-labelledby="gw-title">
+      <div class="logo-icon big" aria-hidden="true">📍</div>
+      <div class="auth-header">
+        <h1 id="gw-title" tabindex="-1">Welcome to CityLens</h1>
+        <p>Chennai's mobility intelligence platform.<br>How would you like to continue today?</p>
+      </div>
+      <div class="gateway-cards">
+        <button class="gateway-card" type="button" data-go="citizen-login">
+          <span class="icon" aria-hidden="true">👤</span>
+          <span class="gc-title">Citizen</span>
+          <span class="gc-desc">Report hazards, confirm issues, get hazard-aware routes and earn credits.</span>
+        </button>
+        <button class="gateway-card" type="button" data-go="admin-login">
+          <span class="icon" aria-hidden="true">🏛️</span>
+          <span class="gc-title">Municipal Admin</span>
+          <span class="gc-desc">Approve access requests, review incidents and update their status.</span>
+        </button>
+      </div>
+      <p class="build-note">Demo build: all accounts and incidents are stored in this browser. No server or database is needed.</p>
+    </section>
+
+    <!-- Citizen login -->
+    <section class="page auth-container" id="page-citizen-login" aria-labelledby="cl-title">
+      <div class="auth-box">
+        <div class="auth-header">
+          <h1 id="cl-title" tabindex="-1">Citizen login</h1>
+          <p>Log in to report and confirm road hazards.</p>
+        </div>
+        <form id="form-citizen-login">
+          <div class="form-alert" id="alert-cl" role="alert" hidden></div>
+          <div class="form-group">
+            <label for="cl-email">Email address</label>
+            <input id="cl-email" name="email" type="email" class="form-control" autocomplete="email" required>
+          </div>
+          <div class="form-group">
+            <label for="cl-pass">Password</label>
+            <input id="cl-pass" name="password" type="password" class="form-control" autocomplete="current-password" required>
+          </div>
+          <button type="submit" class="btn-primary">Log in</button>
+        </form>
+        <button class="link-btn" type="button" data-go="citizen-signup">Don't have an account? Sign up</button>
+        <button class="link-btn muted" type="button" data-go="auth-gateway">← Back</button>
+      </div>
+    </section>
+
+    <!-- Citizen signup -->
+    <section class="page auth-container" id="page-citizen-signup" aria-labelledby="cs-title">
+      <div class="auth-box">
+        <div class="auth-header">
+          <h1 id="cs-title" tabindex="-1">Create citizen account</h1>
+          <p>Join the community helping fix Chennai's roads.</p>
+        </div>
+        <form id="form-citizen-signup">
+          <div class="form-alert" id="alert-cs" role="alert" hidden></div>
+          <div class="form-group">
+            <label for="cs-name">Full name</label>
+            <input id="cs-name" name="name" type="text" class="form-control" autocomplete="name" minlength="2" required>
+          </div>
+          <div class="form-group">
+            <label for="cs-email">Email address</label>
+            <input id="cs-email" name="email" type="email" class="form-control" autocomplete="email" required>
+          </div>
+          <div class="form-group">
+            <label for="cs-pass">Password</label>
+            <input id="cs-pass" name="password" type="password" class="form-control" autocomplete="new-password" minlength="8" required>
+            <div class="hint">At least 8 characters.</div>
+          </div>
+          <button type="submit" class="btn-primary">Create account</button>
+        </form>
+        <button class="link-btn" type="button" data-go="citizen-login">Already have an account? Log in</button>
+        <button class="link-btn muted" type="button" data-go="auth-gateway">← Back</button>
+      </div>
+    </section>
+
+    <!-- Admin login -->
+    <section class="page auth-container" id="page-admin-login" aria-labelledby="al-title">
+      <div class="auth-box">
+        <div class="auth-header">
+          <h1 id="al-title" tabindex="-1" style="color: var(--admin-dark);">Admin login</h1>
+          <p>Authorised municipal personnel only.</p>
+        </div>
+        <form id="form-admin-login">
+          <div class="form-alert" id="alert-al" role="alert" hidden></div>
+          <div class="form-group">
+            <label for="al-email">Official email</label>
+            <input id="al-email" name="email" type="email" class="form-control" autocomplete="email" required>
+          </div>
+          <div class="form-group">
+            <label for="al-emp">Employee ID</label>
+            <input id="al-emp" name="employeeId" type="text" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="al-pass">Password</label>
+            <input id="al-pass" name="password" type="password" class="form-control" autocomplete="current-password" required>
+          </div>
+          <button type="submit" class="btn-primary admin">Access admin portal</button>
+        </form>
+        <div class="demo-hint">Demo admin account: admin@citylens.demo · EMP-0001 · CityLens-Demo-2026</div>
+        <button class="link-btn admin" type="button" data-go="admin-request">Need an admin account? Request access</button>
+        <button class="link-btn muted" type="button" data-go="auth-gateway">← Back</button>
+      </div>
+    </section>
+
+    <!-- Admin access request (does NOT grant access) -->
+    <section class="page auth-container" id="page-admin-request" aria-labelledby="ar-title">
+      <div class="auth-box">
+        <div class="auth-header">
+          <h1 id="ar-title" tabindex="-1" style="color: var(--admin-dark);">Request admin access</h1>
+          <p>An existing administrator reviews every request. Access is not granted automatically.</p>
+        </div>
+        <form id="form-admin-request">
+          <div class="form-alert" id="alert-ar" role="alert" hidden></div>
+          <div class="form-group">
+            <label for="ar-name">Full name</label>
+            <input id="ar-name" name="name" type="text" class="form-control" autocomplete="name" minlength="2" required>
+          </div>
+          <div class="form-group">
+            <label for="ar-email">Official email address</label>
+            <input id="ar-email" name="email" type="email" class="form-control" autocomplete="email" required>
+          </div>
+          <div class="form-group">
+            <label for="ar-emp">Employee ID</label>
+            <input id="ar-emp" name="employeeId" type="text" class="form-control" required>
+            <div class="hint">Used for manual verification against municipal records.</div>
+          </div>
+          <div class="form-group">
+            <label for="ar-pass">Password</label>
+            <input id="ar-pass" name="password" type="password" class="form-control" autocomplete="new-password" minlength="8" required>
+          </div>
+          <button type="submit" class="btn-primary admin">Submit request</button>
+        </form>
+        <button class="link-btn admin" type="button" data-go="admin-login">Already approved? Log in</button>
+        <button class="link-btn muted" type="button" data-go="auth-gateway">← Back</button>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- MAIN APPLICATION PAGES                         -->
+    <!-- ============================================== -->
+
+    <!-- HOME -->
+    <section class="page page-center" id="page-landing" aria-labelledby="hero-title">
+      <span class="hero-tag">Chennai · Real-time mobility tracking</span>
+      <h1 class="hero-title" id="hero-title" tabindex="-1">See road hazards. <span>Fix the city.</span></h1>
+      <p class="hero-desc">CityLens shows potholes, roadblocks, flooding and traffic on a live map of Chennai, and suggests routes that avoid them.</p>
+      <div class="btn-group">
+        <button class="btn-primary btn-wide" type="button" data-go="map">Open live map</button>
+        <button class="btn-outline" type="button" data-go="report" data-citizen-only>Report a hazard</button>
+        <a href="/cmi" class="btn-primary" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; gap:6px; background:#10b981; min-height:44px; padding:12px 22px; border-radius:8px; font-weight:700;"><span>🧭 Open AI Corridor Map</span></a>
+      </div>
+      <dl class="stats">
+        <div class="stat"><dt>Active incidents</dt><dd id="stat-active">0</dd></div>
+        <div class="stat"><dt>Verified</dt><dd id="stat-verified">0</dd></div>
+        <div class="stat"><dt>Resolved</dt><dd id="stat-resolved">0</dd></div>
+      </dl>
+      <section class="status-card" aria-labelledby="status-title">
+        <h2 id="status-title">What works in this build</h2>
+        <ul>
+          <li><strong>Working:</strong> accounts and sessions, admin approval, pin-based reporting with duplicate warnings, one confirmation per person per incident, the incident lifecycle, filters, road routing (OSRM public service) with hazard checks, and live weather (Open-Meteo, no key).</li>
+          <li><strong>Simulated:</strong> AI-detected incidents are demo seeds until the NLP pipeline is connected. Duplicate matching uses location and category only.</li>
+          <li><strong>Needs a backend:</strong> enforced roles, server-side credits, a shared feed between users, and secure photo storage. Browser-only checks can be bypassed by anyone with developer tools.</li>
+          <li><strong>Needs your own key:</strong> the TomTom traffic and OpenWeather rain overlays. Keys entered on the map are kept only for the current tab.</li>
+        </ul>
+      </section>
+    </section>
+
+    <!-- LIVE MAP -->
+    <section class="page" id="page-map" aria-labelledby="map-title">
+      <div class="map-wrapper">
+        <h1 id="map-title" class="sr-only" tabindex="-1">Live incident map</h1>
+
+        <div class="map-controls-panel">
+          <form class="map-search-box" id="form-map-search" role="search" aria-label="Search Chennai areas">
+            <label for="map-search-input" class="sr-only">Search a Chennai area</label>
+            <input id="map-search-input" type="text" list="area-list" placeholder="🔍 Search an area, e.g. T. Nagar">
+            <button type="submit">Search</button>
+          </form>
+
+          <div class="filter-bar" role="group" aria-label="Filter incidents">
+            <label>Category <select id="filter-cat"></select></label>
+            <label>Severity <select id="filter-sev"></select></label>
+            <label>Status <select id="filter-status"></select></label>
+          </div>
+
+          <div class="layer-toggle-bar" role="group" aria-label="Map overlays">
+            <button class="layer-btn" id="layer-btn-traffic" type="button" aria-pressed="false">🚦 Traffic flow</button>
+            <button class="layer-btn" id="layer-btn-rain" type="button" aria-pressed="false">🌧 Rain overlay</button>
+          </div>
+        </div>
+
+        <details class="api-key-drawer">
+          <summary>🔑 Optional overlay keys</summary>
+          <div class="keys">
+            <label for="key-tomtom" style="font-size:11px; font-weight:700;">TomTom traffic key</label>
+            <input id="key-tomtom" type="password" class="form-control" style="min-height:36px; font-size:12px;" autocomplete="off">
+            <label for="key-openweather" style="font-size:11px; font-weight:700;">OpenWeather key</label>
+            <input id="key-openweather" type="password" class="form-control" style="min-height:36px; font-size:12px;" autocomplete="off">
+            <button class="btn-small" id="btn-save-keys" type="button">Use for this tab only</button>
+            <p class="hint">Keys are kept in this tab's session storage only. Anyone who can open this page can read them, so production keys belong on a server.</p>
+          </div>
+        </details>
+
+        <div class="weather-widget" aria-live="polite">
+          <span>🌦 Chennai weather:</span>
+          <b id="weather-text">Loading…</b>
+        </div>
+
+        <aside class="legend" aria-label="Map legend">
+          <h2>Legend</h2>
+          <div class="legend-item"><span class="swatch" style="background:#ef4444;" aria-hidden="true"></span> Critical severity</div>
+          <div class="legend-item"><span class="swatch" style="background:#f97316;" aria-hidden="true"></span> High severity</div>
+          <div class="legend-item"><span class="swatch" style="background:#f59e0b;" aria-hidden="true"></span> Medium severity</div>
+          <div class="legend-item"><span class="swatch" style="background:#fff; border:2px solid #64748b;" aria-hidden="true"></span> Citizen report (solid white ring)</div>
+          <div class="legend-item"><span class="swatch" style="background:#fff; border:2px dashed #0f172a;" aria-hidden="true"></span> AI-detected (dashed ring)</div>
+          <div class="legend-item"><span class="swatch" style="background:#fff; border:3px solid #1d4ed8;" aria-hidden="true"></span> Official notice (blue ring)</div>
+        </aside>
+
+        <div id="map-live" class="map-el" aria-label="Map of Chennai road incidents. Use the incident list beside the map for keyboard access."></div>
+      </div>
+
+      <aside class="sidebar" aria-label="Incident feed and details">
+        <div id="feed-view">
+          <div class="sidebar-header">
+            <h2 class="sidebar-title" id="feed-title" tabindex="-1">Live incident feed</h2>
+            <div class="sidebar-sub" id="feed-count" role="status" aria-live="polite"></div>
+          </div>
+          <ul class="feed-list" id="feed-list"></ul>
+        </div>
+        <div id="detail-view" hidden>
+          <div class="sidebar-header">
+            <button class="link-btn muted" type="button" id="btn-detail-back" style="margin:0; text-align:left;">← Back to list</button>
+          </div>
+          <div class="detail-body" id="detail-body"></div>
+        </div>
+      </aside>
+    </section>
+
+    <!-- REPORT -->
+    <section class="page page-scroll" id="page-report" aria-labelledby="report-title">
+      <h1 id="report-title" tabindex="-1">Report a city issue</h1>
+      <p class="muted">Pick the exact spot on the map. Reports need 2 independent confirmations to become verified. You earn +10 credits for each report you submit.</p>
+
+      <form class="form-box" id="form-report">
+        <div class="form-alert error" id="rep-alert" role="alert" hidden></div>
+
+        <div class="form-group">
+          <label for="rep-title">Issue title <span class="hint">(required, 3–120 characters)</span></label>
+          <input id="rep-title" type="text" class="form-control" maxlength="120" placeholder="e.g. Deep pothole near the Anna Salai signal" required>
+          <div class="field-error" id="err-rep-title" hidden></div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="rep-cat">Category</label>
+            <select id="rep-cat" class="form-control"></select>
+          </div>
+          <div class="form-group">
+            <label for="rep-sev">Severity (your assessment)</label>
+            <select id="rep-sev" class="form-control"></select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="rep-desc">Description <span class="hint">(optional, up to 500 characters)</span></label>
+          <textarea id="rep-desc" class="form-control" maxlength="500"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="rep-photo">Photo <span class="hint">(optional, image under 1 MB)</span></label>
+          <input id="rep-photo" type="file" accept="image/*" class="form-control" style="padding:8px;">
+          <div class="field-error" id="err-rep-photo" hidden></div>
+        </div>
+
+        <fieldset>
+          <legend>Location</legend>
+          <p class="hint">Search for an area, use your location, or click the map to place a pin. You can drag the pin to adjust it.</p>
+          <div class="loc-tools">
+            <label for="rep-search" class="sr-only">Search for an area</label>
+            <input id="rep-search" type="text" class="form-control" list="area-list" placeholder="Search an area, e.g. Velachery">
+            <button class="btn-outline btn-compact" id="btn-rep-search" type="button">Find area</button>
+            <button class="btn-outline btn-compact" id="btn-rep-geo" type="button">Use my location</button>
+          </div>
+          <div id="map-picker" class="map-picker" aria-label="Location picker map. Click to place a pin, or use the button below to place it at the map centre."></div>
+          <div class="field-error" id="err-map-picker" hidden></div>
+          <div class="btn-row">
+            <button class="btn-outline btn-compact" id="btn-pin-centre" type="button">Place pin at map centre</button>
+          </div>
+          <p class="pin-status" id="pin-status" role="status" aria-live="polite">No location selected yet.</p>
+        </fieldset>
+
+        <div class="dup-panel" id="dup-panel" role="region" aria-label="Possible duplicates" hidden></div>
+
+        <button type="submit" class="btn-primary">Submit report (+10 credits)</button>
+      </form>
+    </section>
+
+    <!-- SMART ROUTE -->
+    <section class="page page-scroll" id="page-route" aria-labelledby="route-title">
+      <h1 id="route-title" tabindex="-1">Smart hazard route</h1>
+      <p class="muted">Road geometry comes from the free OSRM routing service. Hazards come from CityLens incident data: any active incident within 150 m of a route counts against it.</p>
+
+      <form class="form-box" id="form-route">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="route-origin">Starting point</label>
+            <input id="route-origin" type="text" class="form-control" list="area-list" value="Tambaram, Chennai" required>
+          </div>
+          <div class="form-group">
+            <label for="route-dest">Destination</label>
+            <input id="route-dest" type="text" class="form-control" list="area-list" value="Guindy, Chennai" required>
+          </div>
+        </div>
+        <div class="form-alert" id="route-message" role="status" hidden></div>
+        <button class="btn-primary" id="route-submit" type="submit">Calculate safest route</button>
+      </form>
+
+      <div class="route-layout">
+        <div id="map-route" class="map-route" aria-label="Map showing the recommended route and alternatives"></div>
+        <section id="route-results" aria-live="polite" aria-label="Route results">
+          <p class="muted" style="margin:0;">Enter a start and destination to see route options.</p>
+        </section>
+      </div>
+    </section>
+
+    <!-- ADMIN -->
+    <section class="page page-scroll" id="page-admin" aria-labelledby="admin-title">
+      <h1 id="admin-title" tabindex="-1">Municipal admin control center</h1>
+      <p class="muted">Review access requests, then manage incident status. Changes are stored in this browser for the demo.</p>
+
+      <section class="panel" aria-labelledby="req-title">
+        <h2 id="req-title">Admin access requests</h2>
+        <div id="admin-requests"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="inc-title">
+        <h2 id="inc-title">Incidents</h2>
+        <div class="filter-row">
+          <label for="admin-filter">Show status</label>
+          <select id="admin-filter" class="form-control"></select>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <caption class="sr-only">Incidents with source, confirmations and status</caption>
+            <thead>
+              <tr>
+                <th scope="col">Incident</th>
+                <th scope="col">Category</th>
+                <th scope="col">Severity</th>
+                <th scope="col">Source</th>
+                <th scope="col">Confirmations</th>
+                <th scope="col">Status</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody id="admin-table"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" id="admin-detail" aria-labelledby="admin-detail-title" hidden></section>
+
+      <div class="danger-zone">
+        <button class="btn-outline" id="btn-reset-demo" type="button">Reset demo data</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
+
+  <datalist id="area-list"></datalist>
+
+  <script>
+    /* ==================================================================
+       CONFIG
+       Everything the app needs to run lives here. No API keys are required.
+       ================================================================== */
+    const CONFIG = {
+      STORAGE_PREFIX: 'citylens.v2.',
+      SESSION_HOURS: 8,
+      CHENNAI_CENTER: [13.0418, 80.2341],
+      CHENNAI_BOUNDS: { minLat: 12.75, maxLat: 13.30, minLng: 80.05, maxLng: 80.35 },
+      NEAR_M: 150,              // distance at which an incident counts as "on" a route or a duplicate
+      VERIFY_THRESHOLD: 2,      // independent confirmations needed to become "verified"
+      CREDITS: { REPORT: 10, VERIFY: 10 },
+      MAX_PHOTO_BYTES: 1000000,
+      TILE_URL: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+      OSRM_URL: 'https://router.project-osrm.org/route/v1/driving/',
+      NOMINATIM_URL: 'https://nominatim.openstreetmap.org/search',
+      OPEN_METEO_URL: 'https://api.open-meteo.com/v1/forecast?latitude=13.0827&longitude=80.2707&current=temperature_2m,relative_humidity_2m,weather_code',
+      // Demo-only admin account, seeded on first run. Replace with real accounts in the backend.
+      DEMO_ADMIN: { email: 'admin@citylens.demo', employeeId: 'EMP-0001', password: 'CityLens-Demo-2026' }
+    };
+
+    /* Offline gazetteer of Chennai areas (approximate centres). Used for search and instant place resolution. */
+    const AREAS = [
+      { name: 'Guindy', lat: 13.0067, lng: 80.2206 },
+      { name: 'Anna Salai', lat: 13.0604, lng: 80.2496 },
+      { name: 'T. Nagar', lat: 13.0418, lng: 80.2341 },
+      { name: 'Alandur', lat: 13.0032, lng: 80.2060 },
+      { name: 'Velachery', lat: 12.9815, lng: 80.2180 },
+      { name: 'Adyar', lat: 13.0067, lng: 80.2573 },
+      { name: 'Mylapore', lat: 13.0339, lng: 80.2619 },
+      { name: 'Egmore', lat: 13.0732, lng: 80.2609 },
+      { name: 'Chennai Central', lat: 13.0827, lng: 80.2707 },
+      { name: 'Triplicane', lat: 13.0587, lng: 80.2757 },
+      { name: 'Besant Nagar', lat: 13.0003, lng: 80.2668 },
+      { name: 'Kodambakkam', lat: 13.0524, lng: 80.2245 },
+      { name: 'Koyambedu', lat: 13.0694, lng: 80.1948 },
+      { name: 'Porur', lat: 13.0382, lng: 80.1565 },
+      { name: 'Ambattur', lat: 13.1143, lng: 80.1548 },
+      { name: 'Perambur', lat: 13.1143, lng: 80.2329 },
+      { name: 'Tambaram', lat: 12.9249, lng: 80.1270 },
+      { name: 'Chromepet', lat: 12.9516, lng: 80.1462 },
+      { name: 'Pallavaram', lat: 12.9675, lng: 80.1491 },
+      { name: 'Sholinganallur', lat: 12.9010, lng: 80.2279 },
+      { name: 'Thoraipakkam', lat: 12.9406, lng: 80.2401 },
+      { name: 'Taramani', lat: 12.9866, lng: 80.2466 }
+    ];
+
+    const CATEGORIES = { Pothole: 'Pothole', Roadblock: 'Roadblock', Flooding: 'Waterlogging / Flooding', Traffic: 'Severe traffic' };
+    const SEVERITY = {
+      critical: { label: 'Critical', weight: 3, color: '#ef4444' },
+      high:     { label: 'High',     weight: 2, color: '#f97316' },
+      medium:   { label: 'Medium',   weight: 1, color: '#f59e0b' }
+    };
+    const STATUS_LABEL = {
+      pending: 'Pending verification',
+      verified: 'Verified',
+      acknowledged: 'Acknowledged',
+      in_progress: 'In progress',
+      resolved: 'Resolved',
+      reopened: 'Reopened'
+    };
+    // Lifecycle: pending -> verified (automatic) -> acknowledged -> in_progress -> resolved -> reopened
+    const TRANSITIONS = {
+      pending: ['acknowledged'],
+      verified: ['acknowledged'],
+      acknowledged: ['in_progress', 'resolved'],
+      in_progress: ['resolved'],
+      resolved: ['reopened'],
+      reopened: ['acknowledged', 'in_progress', 'resolved']
+    };
+    const TRANSITION_LABEL = { acknowledged: 'Acknowledge', in_progress: 'Mark in progress', resolved: 'Mark resolved', reopened: 'Reopen' };
+
+    const AUTH_PAGES = ['auth-gateway', 'citizen-login', 'citizen-signup', 'admin-login', 'admin-request'];
+    const APP_PAGES = { landing: {}, map: {}, report: { role: 'citizen' }, route: {}, admin: { role: 'admin' } };
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    /* ==================================================================
+       DOM HELPERS (no innerHTML anywhere: user text is always inserted as text)
+       ================================================================== */
+    const $ = id => document.getElementById(id);
+
+    function el(tag, props, ...children) {
+      const node = document.createElement(tag);
+      for (const [key, value] of Object.entries(props || {})) {
+        if (value === undefined || value === null || value === false) continue;
+        if (key === 'class') node.className = value;
+        else if (key === 'text') node.textContent = value;
+        else if (key.startsWith('on') && typeof value === 'function') node.addEventListener(key.slice(2), value);
+        else node.setAttribute(key, value === true ? '' : value);
+      }
+      for (const child of children.flat(Infinity)) {
+        if (child === null || child === undefined || child === false) continue;
+        node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+      }
+      return node;
+    }
+
+    function fillSelect(id, pairs, selected) {
+      $(id).replaceChildren(...pairs.map(([value, label]) => el('option', { value, text: label, selected: value === selected })));
+    }
+
+    function toast(message, type = 'info') {
+      const node = el('div', { class: `toast toast-${type}`, role: 'status', text: message });
+      $('toast-region').append(node);
+      setTimeout(() => node.remove(), 4500);
+    }
+
+    function showBanner(message, kind = 'warn') {
+      $('banner-text').textContent = message;
+      $('app-banner').className = `banner ${kind}`;
+      $('app-banner').hidden = false;
+    }
+
+    function setAlert(id, message, kind = 'error') {
+      const box = $(id);
+      box.textContent = message || '';
+      box.className = `form-alert ${kind}`;
+      box.hidden = !message;
+    }
+
+    function setFieldError(targetId, message) {
+      const target = $(targetId);
+      const err = $('err-' + targetId);
+      if (message) {
+        target.setAttribute('aria-invalid', 'true');
+        err.textContent = message;
+        err.hidden = false;
+        target.setAttribute('aria-describedby', err.id);
+      } else {
+        target.removeAttribute('aria-invalid');
+        target.removeAttribute('aria-describedby');
+        err.textContent = '';
+        err.hidden = true;
+      }
+    }
+
+    async function runAction(fn) {
+      try {
+        await fn();
+      } catch (err) {
+        console.error(err);
+        toast(err && err.message ? err.message : 'Something went wrong. Please try again.', 'error');
+      }
+    }
+
+    function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+    function fmtDate(ts) { return new Date(ts).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+    function hasLeaflet() { return typeof window.L !== 'undefined'; }
+
+    function distanceM(lat1, lng1, lat2, lng2) {
+      const R = 6371000, rad = d => d * Math.PI / 180;
+      const dLat = rad(lat2 - lat1), dLng = rad(lng2 - lng1);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLng / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(a));
+    }
+
+    // Distance from a point to a line segment, in metres (local flat approximation, fine at city scale)
+    function distPointToSegmentM(p, a, b) {
+      const kx = 111320 * Math.cos(p.lat * Math.PI / 180), ky = 110574;
+      const px = (p.lng - a[1]) * kx, py = (p.lat - a[0]) * ky;
+      const bx = (b[1] - a[1]) * kx, by = (b[0] - a[0]) * ky;
+      const len2 = bx * bx + by * by;
+      let t = len2 ? (px * bx + py * by) / len2 : 0;
+      t = Math.max(0, Math.min(1, t));
+      return Math.hypot(px - t * bx, py - t * by);
+    }
+
+    function minDistanceToPolyline(p, coords) {
+      let best = Infinity;
+      for (let i = 0; i < coords.length - 1; i++) best = Math.min(best, distPointToSegmentM(p, coords[i], coords[i + 1]));
+      return best;
+    }
+
+    function inBounds(lat, lng) {
+      const b = CONFIG.CHENNAI_BOUNDS;
+      return lat >= b.minLat && lat <= b.maxLat && lng >= b.minLng && lng <= b.maxLng;
+    }
+
+    function nearestArea(lat, lng) {
+      let best = null;
+      for (const a of AREAS) {
+        const d = distanceM(lat, lng, a.lat, a.lng);
+        if (!best || d < best.d) best = { name: a.name, d };
+      }
+      return best;
+    }
+
+    async function fetchWithTimeout(url, ms) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), ms);
+      try {
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    /* ==================================================================
+       DATA LAYER
+       Every read and write goes through Store. To connect Supabase later,
+       replace the bodies of these methods; the rest of the app stays the same.
+       ================================================================== */
+    const P = CONFIG.STORAGE_PREFIX;
+
+    function readKey(key, fallback) {
+      try {
+        const raw = localStorage.getItem(P + key);
+        return raw === null ? fallback : JSON.parse(raw);
+      } catch (err) {
+        return fallback;
+      }
+    }
+
+    function writeKey(key, value) {
+      try {
+        localStorage.setItem(P + key, JSON.stringify(value));
+      } catch (err) {
+        throw new Error('Browser storage is full. Remove a photo or reset demo data, then try again.');
+      }
+    }
+
+    function toHex(bytes) { return [...bytes].map(b => b.toString(16).padStart(2, '0')).join(''); }
+    function fromHex(hex) { return Uint8Array.from(hex.match(/.{2}/g).map(h => parseInt(h, 16))); }
+
+    // PBKDF2-SHA256 password hashing via Web Crypto. Enough for a demo; real auth belongs to Supabase Auth.
+    async function derivePassword(password, saltHex) {
+      const salt = saltHex ? fromHex(saltHex) : crypto.getRandomValues(new Uint8Array(16));
+      const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+      const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, keyMaterial, 256);
+      return { salt: toHex(salt), hash: toHex(new Uint8Array(bits)) };
+    }
+
+    function seedIncidents() {
+      const h = 3600e3, now = Date.now();
+      const verifiers = n => Array.from({ length: n }, (_, i) => `seed-verifier-${i + 1}`);
+      return [
+        { id: 'inc-seed-1', title: 'Massive pothole on Anna Salai', cat: 'Pothole', sev: 'high', loc: 'Anna Salai, Guindy', lat: 13.0067, lng: 80.2020,
+          source: 'citizen', reporterId: 'seed', description: 'Deep pothole in the left lane near the signal.', photo: null, confidence: null,
+          reportedAt: now - 30 * h, verifiedBy: verifiers(8), status: 'verified',
+          history: [{ at: now - 30 * h, by: 'citizen', to: 'pending', note: 'Reported by a citizen' }, { at: now - 20 * h, by: 'system', to: 'verified', note: 'Reached 2 independent confirmations' }] },
+        { id: 'inc-seed-2', title: 'Waterlogging near Panagal Park', cat: 'Flooding', sev: 'critical', loc: 'T. Nagar', lat: 13.0418, lng: 80.2341,
+          source: 'citizen', reporterId: 'seed', description: 'Knee-deep water after the evening rain.', photo: null, confidence: null,
+          reportedAt: now - 6 * h, verifiedBy: verifiers(15), status: 'verified',
+          history: [{ at: now - 6 * h, by: 'citizen', to: 'pending', note: 'Reported by a citizen' }, { at: now - 5 * h, by: 'system', to: 'verified', note: 'Reached 2 independent confirmations' }] },
+        { id: 'inc-seed-3', title: 'Metro construction narrows the road', cat: 'Roadblock', sev: 'medium', loc: 'Alandur signal', lat: 13.0032, lng: 80.2060,
+          source: 'citizen', reporterId: 'seed', description: 'One lane closed for barricading.', photo: null, confidence: null,
+          reportedAt: now - 50 * h, verifiedBy: verifiers(3), status: 'verified',
+          history: [{ at: now - 50 * h, by: 'citizen', to: 'pending', note: 'Reported by a citizen' }, { at: now - 40 * h, by: 'system', to: 'verified', note: 'Reached 2 independent confirmations' }] },
+        { id: 'inc-seed-4', title: 'Traffic breakdown on Velachery Main Road', cat: 'Traffic', sev: 'high', loc: 'Velachery Main Road', lat: 12.9815, lng: 80.2180,
+          source: 'ai', reporterId: 'ai', description: 'Detected from a public news item (simulated).', photo: null, confidence: 0.72,
+          reportedAt: now - 3 * h, verifiedBy: [], status: 'pending',
+          history: [{ at: now - 3 * h, by: 'system', to: 'pending', note: 'Detected by the AI pipeline (simulated)' }] },
+        { id: 'inc-seed-5', title: 'Pothole cluster on the Tambaram road', cat: 'Pothole', sev: 'high', loc: 'Tambaram', lat: 12.9249, lng: 80.1270,
+          source: 'ai', reporterId: 'ai', description: 'Several potholes mentioned in a public post (simulated).', photo: null, confidence: 0.61,
+          reportedAt: now - 8 * h, verifiedBy: [], status: 'pending',
+          history: [{ at: now - 8 * h, by: 'system', to: 'pending', note: 'Detected by the AI pipeline (simulated)' }] },
+        { id: 'inc-seed-6', title: 'Road closed for drainage works', cat: 'Roadblock', sev: 'medium', loc: 'Koyambedu', lat: 13.0694, lng: 80.1948,
+          source: 'official', reporterId: 'official', description: 'Corporation notice (demo).', photo: null, confidence: null,
+          reportedAt: now - 60 * h, verifiedBy: verifiers(2), status: 'acknowledged',
+          history: [{ at: now - 60 * h, by: 'system', to: 'pending', note: 'Published as an official notice' }, { at: now - 48 * h, by: 'admin', to: 'acknowledged', note: 'Works scheduled' }] },
+        { id: 'inc-seed-7', title: 'Flooded subway at Sholinganallur', cat: 'Flooding', sev: 'high', loc: 'Sholinganallur', lat: 12.9010, lng: 80.2279,
+          source: 'citizen', reporterId: 'seed', description: 'Pumps have cleared the water.', photo: null, confidence: null,
+          reportedAt: now - 90 * h, verifiedBy: verifiers(4), status: 'resolved',
+          history: [{ at: now - 90 * h, by: 'citizen', to: 'pending', note: 'Reported by a citizen' }, { at: now - 80 * h, by: 'admin', to: 'acknowledged', note: 'Crew dispatched' }, { at: now - 70 * h, by: 'admin', to: 'resolved', note: 'Pumps installed and water cleared' }] }
+      ];
+    }
+
+    const Store = {
+      async ensureSeeded() {
+        if (localStorage.getItem(P + 'seeded')) return;
+        const admin = await derivePassword(CONFIG.DEMO_ADMIN.password);
+        writeKey('users', [{
+          id: 'admin-demo', name: 'Demo Administrator', email: CONFIG.DEMO_ADMIN.email, employeeId: CONFIG.DEMO_ADMIN.employeeId,
+          role: 'admin', status: 'active', salt: admin.salt, hash: admin.hash, createdAt: Date.now()
+        }]);
+        writeKey('incidents', seedIncidents());
+        writeKey('ledger', []);
+        localStorage.setItem(P + 'seeded', '1');
+      },
+      async getUsers() { return readKey('users', []); },
+      async saveUsers(users) { writeKey('users', users); },
+      async getIncidents() { return readKey('incidents', []); },
+      async saveIncidents(incidents) { writeKey('incidents', incidents); },
+      async getLedger() { return readKey('ledger', []); },
+      // Idempotent: the same event id can never award credits twice.
+      async addCredit(entry) {
+        const ledger = readKey('ledger', []);
+        if (ledger.some(e => e.id === entry.id)) return false;
+        ledger.push({ ...entry, at: Date.now() });
+        writeKey('ledger', ledger);
+        return true;
+      },
+      getSessionUserId() {
+        const session = readKey('session', null);
+        if (!session) return null;
+        if (Date.now() > session.expiresAt) { localStorage.removeItem(P + 'session'); return null; }
+        return session.userId;
+      },
+      startSession(userId) { writeKey('session', { userId, expiresAt: Date.now() + CONFIG.SESSION_HOURS * 3600e3 }); },
+      endSession() { localStorage.removeItem(P + 'session'); },
+      async resetAll() {
+        Object.keys(localStorage).filter(k => k.startsWith(P)).forEach(k => localStorage.removeItem(k));
+        await this.ensureSeeded();
+      }
+    };
+
+    /* ==================================================================
+       APP STATE
+       ================================================================== */
+    const state = {
+      user: null,
+      users: [],
+      incidents: [],
+      ledger: [],
+      currentPage: null,
+      selectedId: null,
+      adminSelected: null,
+      pin: null,
+      pinMarker: null,
+      photoData: null,
+      maps: { live: null, picker: null, route: null },
+      layers: { incidents: null, traffic: null, rain: null },
+      routeLayer: null,
+      weatherLoaded: false,
+      routeBusy: false
+    };
+
+    async function loadState() {
+      state.users = await Store.getUsers();
+      state.incidents = await Store.getIncidents();
+      state.ledger = await Store.getLedger();
+      const uid = Store.getSessionUserId();
+      state.user = uid ? (state.users.find(u => u.id === uid && u.status === 'active') || null) : null;
+    }
+
+    async function commitIncidents(next) {
+      // Update memory first so a double click cannot act on stale data, then persist.
+      const previous = state.incidents;
+      state.incidents = next;
+      try { await Store.saveIncidents(next); }
+      catch (err) { state.incidents = previous; throw err; }
+    }
+
+    async function commitUsers(next) {
+      const previous = state.users;
+      state.users = next;
+      try { await Store.saveUsers(next); }
+      catch (err) { state.users = previous; throw err; }
+    }
+
+    function updateIncident(id, patch, historyEntry) {
+      const next = state.incidents.map(i => i.id !== id ? i : {
+        ...i,
+        ...patch,
+        history: historyEntry ? [...i.history, { at: Date.now(), ...historyEntry }] : i.history
+      });
+      return commitIncidents(next);
+    }
+
+    const byId = id => state.incidents.find(i => i.id === id);
+    const isActive = inc => inc.status !== 'resolved';
+    const creditsFor = userId => state.ledger.filter(e => e.userId === userId).reduce((sum, e) => sum + e.amount, 0);
+
+    function requireUser(role) {
+      if (!state.user) { toast('Please log in first.', 'warn'); return null; }
+      if (role && state.user.role !== role) {
+        toast(role === 'citizen' ? 'This action is for citizen accounts.' : 'Admin access required.', 'warn');
+        return null;
+      }
+      return state.user;
+    }
+
+    // Returns a reason string if the current user may NOT verify this incident, otherwise null.
+    function verifyBlockReason(inc) {
+      if (!state.user) return 'Log in as a citizen to confirm incidents.';
+      if (state.user.role !== 'citizen') return 'Only citizen accounts can confirm incidents.';
+      if (inc.reporterId === state.user.id) return 'You cannot confirm your own report.';
+      if (inc.status === 'resolved') return 'This incident is already resolved.';
+      if (inc.verifiedBy.includes(state.user.id)) return 'You have already confirmed this incident.';
+      return null;
+    }
+
+    /* ==================================================================
+       AUTH & SESSION
+       ================================================================== */
+    async function handleLogin(form, role) {
+      const email = form.email.value.trim().toLowerCase();
+      const password = form.password.value;
+      const alertId = role === 'admin' ? 'alert-al' : 'alert-cl';
+      setAlert(alertId, '');
+
+      const user = state.users.find(u => u.email === email);
+      const passwordOk = user ? (await derivePassword(password, user.salt)).hash === user.hash : false;
+      if (!passwordOk) return setAlert(alertId, 'Email or password is incorrect.');
+
+      if (user.role !== role) {
+        return setAlert(alertId, role === 'admin'
+          ? 'This is a citizen account. Use Citizen login instead.'
+          : 'This is an admin account. Use the Municipal Admin login instead.');
+      }
+      if (role === 'admin' && user.employeeId !== form.employeeId.value.trim()) {
+        return setAlert(alertId, 'Employee ID does not match this account.');
+      }
+      if (user.status === 'pending') return setAlert(alertId, 'Your admin access request is awaiting approval.', 'info');
+      if (user.status === 'rejected') return setAlert(alertId, 'Your admin access request was not approved. Contact the municipal office.');
+
+      Store.startSession(user.id);
+      state.user = user;
+      form.reset();
+      await refreshAll();
+      showPage('landing');
+      toast(`Welcome, ${user.name}.`, 'success');
+    }
+
+    async function handleCitizenSignup(form) {
+      const name = form.name.value.trim();
+      const email = form.email.value.trim().toLowerCase();
+      const password = form.password.value;
+      setAlert('alert-cs', '');
+      if (name.length < 2) return setAlert('alert-cs', 'Please enter your full name.');
+      if (!EMAIL_RE.test(email)) return setAlert('alert-cs', 'Please enter a valid email address.');
+      if (password.length < 8) return setAlert('alert-cs', 'Password must be at least 8 characters.');
+      if (state.users.some(u => u.email === email)) return setAlert('alert-cs', 'An account with this email already exists. Try logging in.');
+
+      const cred = await derivePassword(password);
+      const user = { id: 'cit-' + uid(), name, email, role: 'citizen', status: 'active', salt: cred.salt, hash: cred.hash, createdAt: Date.now() };
+      await commitUsers([...state.users, user]);
+      Store.startSession(user.id);
+      state.user = user;
+      form.reset();
+      await refreshAll();
+      showPage('landing');
+      toast(`Account created. Welcome, ${user.name}.`, 'success');
+    }
+
+    async function handleAdminRequest(form) {
+      const name = form.name.value.trim();
+      const email = form.email.value.trim().toLowerCase();
+      const employeeId = form.employeeId.value.trim();
+      const password = form.password.value;
+      setAlert('alert-ar', '');
+      if (name.length < 2) return setAlert('alert-ar', 'Please enter your full name.');
+      if (!EMAIL_RE.test(email)) return setAlert('alert-ar', 'Please enter a valid email address.');
+      if (!employeeId) return setAlert('alert-ar', 'Employee ID is required.');
+      if (password.length < 8) return setAlert('alert-ar', 'Password must be at least 8 characters.');
+      if (state.users.some(u => u.email === email)) return setAlert('alert-ar', 'An account with this email already exists.');
+
+      const cred = await derivePassword(password);
+      const request = { id: 'adm-' + uid(), name, email, employeeId, role: 'admin', status: 'pending', salt: cred.salt, hash: cred.hash, createdAt: Date.now() };
+      await commitUsers([...state.users, request]);
+      form.reset();
+      setAlert('alert-ar', 'Request submitted. An existing administrator must approve it before you can log in.', 'success');
+      renderAdminRequests();
+    }
+
+    async function reviewAdminRequest(userId, status) {
+      if (!requireUser('admin')) return;
+      await commitUsers(state.users.map(u => u.id === userId ? { ...u, status } : u));
+      await refreshAll();
+      toast(status === 'active' ? 'Access approved.' : 'Request rejected.', 'success');
+    }
+
+    function logout() {
+      Store.endSession();
+      state.user = null;
+      state.selectedId = null;
+      state.adminSelected = null;
+      applyShell();
+      showPage('auth-gateway');
+      toast('You have been logged out.', 'info');
+    }
+
+    /* ==================================================================
+       NAVIGATION
+       ================================================================== */
+    function showPage(name, { focus = true } = {}) {
+      const isAuth = AUTH_PAGES.includes(name);
+      if (!isAuth) {
+        if (!APP_PAGES[name]) return;
+        if (!state.user) return showPage('auth-gateway');
+        const need = APP_PAGES[name].role;
+        if (need && state.user.role !== need) {
+          toast(need === 'admin' ? 'Admin access required.' : 'This page is for citizen accounts.', 'warn');
+          return;
+        }
+      }
+
+      document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === `page-${name}`));
+      document.querySelectorAll('[data-nav]').forEach(btn => {
+        const on = btn.dataset.nav === name;
+        btn.classList.toggle('active', on);
+        if (on) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
+      });
+      $('app-header').hidden = isAuth || !state.user;
+      state.currentPage = name;
+
+      if (name === 'map') {
+        const map = ensureLiveMap();
+        if (map) requestAnimationFrame(() => map.invalidateSize());
+        if (!state.weatherLoaded) loadWeather();
+        renderFeed();
+        renderMarkers();
+      }
+      if (name === 'report') {
+        const map = ensurePickerMap();
+        if (map) requestAnimationFrame(() => map.invalidateSize());
+        renderDuplicates();
+      }
+      if (name === 'route') {
+        const map = ensureRouteMap();
+        if (map) requestAnimationFrame(() => map.invalidateSize());
+      }
+      if (name === 'admin') renderAdmin();
+      if (name === 'landing') renderLandingStats();
+
+      if (focus) {
+        const heading = document.querySelector(`#page-${name} h1`);
+        if (heading) heading.focus({ preventScroll: false });
+      }
+    }
+
+    function applyShell() {
+      const user = state.user;
+      $('app-header').hidden = !user || AUTH_PAGES.includes(state.currentPage);
+      document.querySelectorAll('[data-admin-only]').forEach(b => { b.hidden = !(user && user.role === 'admin'); });
+      document.querySelectorAll('[data-citizen-only]').forEach(b => { b.hidden = !(user && user.role === 'citizen'); });
+      $('user-name').textContent = user ? user.name : '';
+      $('credit-badge').hidden = !(user && user.role === 'citizen');
+      $('user-credits').textContent = user && user.role === 'citizen' ? creditsFor(user.id) : 0;
+    }
+
+    function renderLandingStats() {
+      $('stat-active').textContent = state.incidents.filter(isActive).length;
+      $('stat-verified').textContent = state.incidents.filter(i => i.status === 'verified').length;
+      $('stat-resolved').textContent = state.incidents.filter(i => i.status === 'resolved').length;
+    }
+
+    async function refreshAll() {
+      applyShell();
+      renderFeed();
+      renderMarkers();
+      if (state.selectedId) renderDetail();
+      renderDuplicates();
+      if (state.currentPage === 'admin') renderAdmin();
+      if (state.currentPage === 'landing') renderLandingStats();
+    }
+
+    /* ==================================================================
+       BADGES & LABELS
+       ================================================================== */
+    function sourceText(inc) {
+      if (inc.source === 'ai') return `AI-detected (simulated) · ${Math.round((inc.confidence || 0) * 100)}% confidence`;
+      if (inc.source === 'official') return 'Official notice';
+      return 'Citizen report';
+    }
+    function sourceBadge(inc) {
+      const label = inc.source === 'ai' ? `AI-detected · ${Math.round((inc.confidence || 0) * 100)}%` : inc.source === 'official' ? 'Official notice' : 'Citizen report';
+      return el('span', { class: `badge src-${inc.source}`, text: label, title: sourceText(inc) });
+    }
+    function statusBadge(inc) {
+      return el('span', { class: `badge status-${inc.status}`, text: STATUS_LABEL[inc.status] });
+    }
+    function row(label, value) {
+      return el('div', { class: 'detail-row' }, el('dt', { text: label }), el('dd', { text: value }));
+    }
+
+    /* ==================================================================
+       LIVE MAP
+       ================================================================== */
+    function makeMap(containerId, zoom) {
+      const map = L.map(containerId).setView(CONFIG.CHENNAI_CENTER, zoom);
+      let tileErrors = 0;
+      const tiles = L.tileLayer(CONFIG.TILE_URL, { maxZoom: 19, attribution: 'Tiles &copy; Esri' });
+      tiles.on('tileerror', () => {
+        tileErrors++;
+        if (tileErrors === 5) showBanner('The base map tiles are not loading. Incident lists, reporting and routing still work.', 'warn');
+      });
+      tiles.addTo(map);
+      return map;
+    }
+
+    function ensureLiveMap() {
+      if (!hasLeaflet()) return null;
+      if (!state.maps.live) {
+        const map = makeMap('map-live', 12);
+        state.layers.incidents = L.layerGroup().addTo(map);
+        map.on('click', e => showReportPrompt(e.latlng));
+        state.maps.live = map;
+      }
+      return state.maps.live;
+    }
+
+    function showReportPrompt(latlng) {
+      if (!inBounds(latlng.lat, latlng.lng)) return toast('That point is outside Chennai.', 'warn');
+      const area = nearestArea(latlng.lat, latlng.lng);
+      const action = state.user && state.user.role === 'citizen'
+        ? el('button', { class: 'btn-small', type: 'button', text: 'Report an issue here', onclick: () => openReportAt(latlng.lat, latlng.lng) })
+        : el('p', { class: 'hint', text: 'Log in as a citizen to report an issue here.' });
+      L.popup({ closeButton: true })
+        .setLatLng(latlng)
+        .setContent(el('div', { class: 'popup' }, el('p', { text: `Spot near ${area.name}` }), action))
+        .openOn(state.maps.live);
+    }
+
+    function currentFilters() {
+      return { cat: $('filter-cat').value, sev: $('filter-sev').value, status: $('filter-status').value };
+    }
+
+    function filteredIncidents() {
+      const f = currentFilters();
+      return state.incidents
+        .filter(i => f.cat === 'all' || i.cat === f.cat)
+        .filter(i => f.sev === 'all' || i.sev === f.sev)
+        .filter(i => f.status === 'all' || (f.status === 'active' ? isActive(i) : i.status === f.status))
+        .sort((a, b) => b.verifiedBy.length - a.verifiedBy.length || b.reportedAt - a.reportedAt);
+    }
+
+    function renderMarkers() {
+      const layer = state.layers.incidents;
+      if (!layer) return;
+      layer.clearLayers();
+      for (const inc of filteredIncidents()) {
+        const sev = SEVERITY[inc.sev];
+        const style = {
+          radius: 9,
+          fillColor: sev.color,
+          fillOpacity: inc.status === 'resolved' ? 0.35 : 0.9,
+          color: inc.source === 'ai' ? '#0f172a' : inc.source === 'official' ? '#1d4ed8' : '#64748b',
+          weight: inc.source === 'official' ? 3 : 2,
+          bubblingMouseEvents: false
+        };
+        if (inc.source === 'ai') style.dashArray = '4 3';
+        L.circleMarker([inc.lat, inc.lng], style)
+          .on('click', () => openDetail(inc.id))
+          .addTo(layer);
+      }
+    }
+
+    /* ==================================================================
+       FEED & DETAIL
+       ================================================================== */
+    function incidentCard(inc) {
+      const block = verifyBlockReason(inc);
+      return el('li', { class: 'card' },
+        el('div', { class: 'card-header' },
+          el('h3', { class: 'card-title', text: inc.title }),
+          el('span', { class: `chip chip-${inc.sev}`, text: SEVERITY[inc.sev].label })),
+        el('p', { class: 'card-meta', text: `📍 ${inc.loc} · ${CATEGORIES[inc.cat]}` }),
+        el('div', { class: 'badge-row' }, sourceBadge(inc), statusBadge(inc)),
+        el('div', { class: 'card-footer' },
+          el('span', { text: `✓ ${inc.verifiedBy.length} confirmation${inc.verifiedBy.length === 1 ? '' : 's'}` }),
+          el('div', { class: 'card-actions' },
+            el('button', { class: 'btn-small btn-ghost', type: 'button', 'aria-label': `View details: ${inc.title}`, text: 'Details', onclick: () => openDetail(inc.id) }),
+            block ? null : el('button', { class: 'btn-small', type: 'button', 'aria-label': `Confirm: ${inc.title}`, text: `Confirm +${CONFIG.CREDITS.VERIFY}`, onclick: () => runAction(() => confirmIncident(inc.id)) }))));
+    }
+
+    function renderFeed() {
+      const items = filteredIncidents();
+      $('feed-count').textContent = `${items.length} incident${items.length === 1 ? '' : 's'} shown`;
+      $('feed-list').replaceChildren(...(items.length
+        ? items.map(incidentCard)
+        : [el('li', { class: 'empty', text: 'No incidents match these filters.' })]));
+    }
+
+    function openDetail(id) {
+      if (!byId(id)) return;
+      state.selectedId = id;
+      if (state.currentPage !== 'map') showPage('map', { focus: false });
+      const inc = byId(id);
+      const map = state.maps.live;
+      if (map) map.setView([inc.lat, inc.lng], Math.max(map.getZoom(), 15));
+      renderDetail();
+      $('detail-title') && $('detail-title').focus();
+    }
+
+    function closeDetail() {
+      state.selectedId = null;
+      $('feed-view').hidden = false;
+      $('detail-view').hidden = true;
+      renderFeed();
+      $('feed-title').focus();
+    }
+
+    function renderDetail() {
+      const inc = byId(state.selectedId);
+      if (!inc) { closeDetail(); return; }
+      $('feed-view').hidden = true;
+      $('detail-view').hidden = false;
+
+      const block = verifyBlockReason(inc);
+      const photo = inc.photo && inc.photo.startsWith('data:image/')
+        ? el('img', { class: 'evidence', src: inc.photo, alt: 'Photo submitted with this report' })
+        : null;
+
+      $('detail-body').replaceChildren(
+        el('h2', { id: 'detail-title', class: 'detail-title', tabindex: '-1', text: inc.title }),
+        el('div', { class: 'badge-row' },
+          el('span', { class: `chip chip-${inc.sev}`, text: SEVERITY[inc.sev].label }),
+          statusBadge(inc),
+          sourceBadge(inc)),
+        el('p', { class: 'card-meta', text: `${CATEGORIES[inc.cat]} · ${inc.loc}` }),
+        inc.description ? el('p', { class: 'detail-desc', text: inc.description }) : null,
+        photo,
+        el('dl', { class: 'detail-list' },
+          row('Source', sourceText(inc)),
+          row('Coordinates', `${inc.lat.toFixed(4)}, ${inc.lng.toFixed(4)}`),
+          row('Reported', fmtDate(inc.reportedAt)),
+          row('Independent confirmations', String(inc.verifiedBy.length)),
+          row('Needed to verify', String(CONFIG.VERIFY_THRESHOLD))),
+        el('div', { class: 'btn-row' },
+          block
+            ? el('p', { class: 'hint', text: block })
+            : el('button', { class: 'btn-primary btn-compact', type: 'button', text: `Confirm this hazard (+${CONFIG.CREDITS.VERIFY} credits)`, onclick: () => runAction(() => confirmIncident(inc.id)) })),
+        el('h3', { text: 'History' }),
+        el('ol', { class: 'history' },
+          ...inc.history.map(h => el('li', { text: `${fmtDate(h.at)} · ${STATUS_LABEL[h.to] || h.to}: ${h.note}` }))),
+        el('div', { class: 'btn-row' },
+          el('button', { class: 'btn-outline btn-compact', type: 'button', text: 'Back to list', onclick: closeDetail })));
+
+      if (state.currentPage === 'map') { /* detail is visible in the sidebar */ }
+    }
+
+    async function confirmIncident(id) {
+      const user = requireUser('citizen');
+      if (!user) return;
+      const inc = byId(id);
+      if (!inc) return;
+      const block = verifyBlockReason(inc);
+      if (block) return toast(block, 'warn');
+
+      const verifiedBy = [...inc.verifiedBy, user.id];
+      const patch = { verifiedBy };
+      let historyEntry = null;
+      if (inc.status === 'pending' && verifiedBy.length >= CONFIG.VERIFY_THRESHOLD) {
+        patch.status = 'verified';
+        historyEntry = { by: 'system', to: 'verified', note: `Reached ${CONFIG.VERIFY_THRESHOLD} independent confirmations` };
+      }
+
+      await updateIncident(id, patch, historyEntry);
+      await Store.addCredit({ id: `verify:${id}:${user.id}`, userId: user.id, amount: CONFIG.CREDITS.VERIFY, reason: 'Confirmed an incident' });
+      state.ledger = await Store.getLedger();
+      refreshAll();
+      toast(historyEntry
+        ? `Confirmed. The incident is now verified. +${CONFIG.CREDITS.VERIFY} credits.`
+        : `Confirmation recorded. +${CONFIG.CREDITS.VERIFY} credits.`, 'success');
+    }
+
+    /* ==================================================================
+       LOCATION RESOLUTION (offline gazetteer first, then free Nominatim)
+       ================================================================== */
+    async function resolvePlace(text) {
+      const q = text.trim();
+      if (!q) return null;
+      const lower = q.toLowerCase();
+      const local = AREAS
+        .filter(a => lower.includes(a.name.toLowerCase()))
+        .sort((a, b) => b.name.length - a.name.length)[0];
+      if (local) return { lat: local.lat, lng: local.lng, name: local.name };
+
+      try {
+        const url = `${CONFIG.NOMINATIM_URL}?format=json&limit=1&countrycodes=in&q=${encodeURIComponent(q + ', Chennai, India')}`;
+        const res = await fetchWithTimeout(url, 8000);
+        const data = await res.json();
+        if (data[0]) {
+          const lat = parseFloat(data[0].lat), lng = parseFloat(data[0].lon);
+          if (inBounds(lat, lng)) return { lat, lng, name: q };
+        }
+      } catch (err) { /* network or rate-limit problem: handled by the caller */ }
+      return null;
+    }
+
+    async function searchMap() {
+      const q = $('map-search-input').value.trim();
+      if (!q) return toast('Type an area name to search.', 'warn');
+      const place = await resolvePlace(q);
+      if (!place) return toast('Area not found in Chennai. Try one of the suggested areas.', 'warn');
+      const map = ensureLiveMap();
+      if (map) map.setView([place.lat, place.lng], 15);
+      toast(`Showing ${place.name}.`, 'success');
+    }
+
+    /* ==================================================================
+       REPORTING
+       ================================================================== */
+    function ensurePickerMap() {
+      if (!hasLeaflet()) return null;
+      if (!state.maps.picker) {
+        const map = makeMap('map-picker', 11);
+        map.on('click', e => setPin(e.latlng.lat, e.latlng.lng));
+        state.maps.picker = map;
+        if (state.pin) {
+          state.pinMarker = L.marker([state.pin.lat, state.pin.lng], { draggable: true }).addTo(map);
+          state.pinMarker.on('dragend', () => { const p = state.pinMarker.getLatLng(); setPin(p.lat, p.lng, { pan: false }); });
+        }
+      }
+      return state.maps.picker;
+    }
+
+    function setPinStatus(message, kind = '') {
+      const node = $('pin-status');
+      node.textContent = message;
+      node.className = `pin-status ${kind}`;
+    }
+
+    function setPin(lat, lng, { pan = true } = {}) {
+      if (!inBounds(lat, lng)) {
+        setPinStatus('That point is outside Chennai. Choose a spot inside the city.', 'error');
+        setFieldError('map-picker', 'Location must be inside Chennai.');
+        return false;
+      }
+      state.pin = { lat, lng };
+      setFieldError('map-picker', '');
+      const map = state.maps.picker;
+      if (map) {
+        if (!state.pinMarker) {
+          state.pinMarker = L.marker([lat, lng], { draggable: true, title: 'Incident location' }).addTo(map);
+          state.pinMarker.on('dragend', () => { const p = state.pinMarker.getLatLng(); setPin(p.lat, p.lng, { pan: false }); });
+        } else {
+          state.pinMarker.setLatLng([lat, lng]);
+        }
+        if (pan) map.setView([lat, lng], Math.max(map.getZoom(), 15));
+      }
+      const area = nearestArea(lat, lng);
+      setPinStatus(`Location set near ${area.name} (${lat.toFixed(4)}, ${lng.toFixed(4)}).`, 'ok');
+      renderDuplicates();
+      return true;
+    }
+
+    function openReportAt(lat, lng) {
+      if (state.maps.live) state.maps.live.closePopup();
+      showPage('report');
+      setPin(lat, lng);
+    }
+
+    async function searchIntoPicker() {
+      const q = $('rep-search').value.trim();
+      if (!q) return setPinStatus('Type an area name first.', 'error');
+      const place = await resolvePlace(q);
+      if (!place) return setPinStatus('Area not found in Chennai. Try a suggested area, use your location, or click the map.', 'error');
+      setPin(place.lat, place.lng);
+    }
+
+    function useMyLocation() {
+      if (!navigator.geolocation) return toast('Location is not available in this browser.', 'warn');
+      setPinStatus('Getting your location…');
+      navigator.geolocation.getCurrentPosition(
+        pos => { if (!setPin(pos.coords.latitude, pos.coords.longitude)) return; },
+        () => setPinStatus('Could not get your location. Search for an area or click the map instead.', 'error'),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    }
+
+    function findDuplicates(lat, lng, cat) {
+      return state.incidents.filter(i => isActive(i) && i.cat === cat && distanceM(i.lat, i.lng, lat, lng) <= CONFIG.NEAR_M);
+    }
+
+    function renderDuplicates() {
+      const panel = $('dup-panel');
+      if (!panel) return;
+      const cat = $('rep-cat').value;
+      const dups = state.pin ? findDuplicates(state.pin.lat, state.pin.lng, cat) : [];
+      panel.hidden = dups.length === 0;
+      if (!dups.length) return;
+      panel.replaceChildren(
+        el('h3', { text: 'Possible duplicates nearby' }),
+        el('p', { class: 'hint', text: `A similar active report exists within ${CONFIG.NEAR_M} m. Confirming it is more useful than reporting it again. You can still submit if this is a different problem.` }),
+        el('ul', { class: 'dup-list' }, ...dups.map(d => {
+          const block = verifyBlockReason(d);
+          return el('li', {},
+            el('span', { text: `${d.title} · ${STATUS_LABEL[d.status]}` }),
+            block ? null : el('button', { class: 'btn-small', type: 'button', 'aria-label': `Confirm existing report: ${d.title}`, text: 'Confirm instead', onclick: () => runAction(() => confirmIncident(d.id)) }));
+        })));
+    }
+
+    function handlePhotoChange(input) {
+      state.photoData = null;
+      setFieldError('rep-photo', '');
+      const file = input.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) { setFieldError('rep-photo', 'Please choose an image file.'); input.value = ''; return; }
+      if (file.size > CONFIG.MAX_PHOTO_BYTES) { setFieldError('rep-photo', 'The photo must be under 1 MB.'); input.value = ''; return; }
+      const reader = new FileReader();
+      reader.onload = () => { state.photoData = reader.result; };
+      reader.readAsDataURL(file);
+    }
+
+    function resetReportForm() {
+      $('form-report').reset();
+      state.photoData = null;
+      state.pin = null;
+      if (state.pinMarker) { state.pinMarker.remove(); state.pinMarker = null; }
+      setPinStatus('No location selected yet.');
+      setFieldError('rep-title', '');
+      setFieldError('map-picker', '');
+      renderDuplicates();
+    }
+
+    async function submitReport() {
+      const user = requireUser('citizen');
+      if (!user) return;
+      const title = $('rep-title').value.trim();
+      setAlert('rep-alert', '');
+      setFieldError('rep-title', title.length < 3 ? 'Enter a short title (at least 3 characters).' : '');
+      setFieldError('map-picker', state.pin ? '' : 'Choose a location: search for an area, use your location, or click the map.');
+      if (title.length < 3 || !state.pin) {
+        setAlert('rep-alert', 'Please fix the highlighted fields before submitting.');
+        ($('rep-title').getAttribute('aria-invalid') ? $('rep-title') : $('map-picker')).focus();
+        return;
+      }
+
+      const area = nearestArea(state.pin.lat, state.pin.lng);
+      const incident = {
+        id: 'inc-' + uid(),
+        title,
+        cat: $('rep-cat').value,
+        sev: $('rep-sev').value,
+        description: $('rep-desc').value.trim(),
+        loc: `Near ${area.name}`,
+        lat: state.pin.lat,
+        lng: state.pin.lng,
+        source: 'citizen',
+        reporterId: user.id,
+        reportedAt: Date.now(),
+        photo: state.photoData,
+        confidence: null,
+        verifiedBy: [],
+        status: 'pending',
+        history: [{ at: Date.now(), by: 'citizen', to: 'pending', note: 'Reported by a citizen' }]
+      };
+
+      await commitIncidents([incident, ...state.incidents]);
+      await Store.addCredit({ id: `report:${incident.id}`, userId: user.id, amount: CONFIG.CREDITS.REPORT, reason: 'Submitted a report' });
+      state.ledger = await Store.getLedger();
+      resetReportForm();
+      toast(`Report submitted. +${CONFIG.CREDITS.REPORT} credits. It needs ${CONFIG.VERIFY_THRESHOLD} confirmations to be verified.`, 'success');
+      showPage('map', { focus: false });
+      openDetail(incident.id);
+    }
+
+    /* ==================================================================
+       WEATHER (Open-Meteo: free, no key). Shows loading and error states.
+       ================================================================== */
+    function weatherLabel(code) {
+      if (code === 0) return 'Clear';
+      if (code <= 3) return 'Partly cloudy';
+      if (code <= 48) return 'Fog';
+      if (code <= 67) return 'Rain';
+      if (code <= 82) return 'Showers';
+      if (code >= 95) return 'Thunderstorm';
+      return 'Mixed';
+    }
+
+    async function loadWeather() {
+      state.weatherLoaded = true;
+      const node = $('weather-text');
+      node.textContent = 'Loading…';
+      try {
+        const res = await fetchWithTimeout(CONFIG.OPEN_METEO_URL, 8000);
+        const data = await res.json();
+        const c = data.current;
+        node.textContent = `${Math.round(c.temperature_2m)}°C · ${weatherLabel(c.weather_code)} · Humidity ${c.relative_humidity_2m}%`;
+      } catch (err) {
+        node.textContent = 'Unavailable right now';
+        state.weatherLoaded = false;
+      }
+    }
+
+    /* ==================================================================
+       OPTIONAL OVERLAYS (keys kept in sessionStorage only)
+       ================================================================== */
+    function saveSessionKeys() {
+      sessionStorage.setItem('key-tomtom', $('key-tomtom').value.trim());
+      sessionStorage.setItem('key-openweather', $('key-openweather').value.trim());
+      toast('Keys kept for this tab only.', 'success');
+    }
+
+    function loadKeyFields() {
+      $('key-tomtom').value = sessionStorage.getItem('key-tomtom') || '';
+      $('key-openweather').value = sessionStorage.getItem('key-openweather') || '';
+    }
+
+    function toggleLayer(kind) {
+      const map = ensureLiveMap();
+      if (!map) return toast('The map is unavailable.', 'warn');
+      const btn = $(kind === 'traffic' ? 'layer-btn-traffic' : 'layer-btn-rain');
+      if (state.layers[kind]) {
+        map.removeLayer(state.layers[kind]);
+        state.layers[kind] = null;
+        btn.setAttribute('aria-pressed', 'false');
+        return;
+      }
+      const key = sessionStorage.getItem(kind === 'traffic' ? 'key-tomtom' : 'key-openweather');
+      if (!key) return toast(`Add a ${kind === 'traffic' ? 'TomTom' : 'OpenWeather'} key under "Optional overlay keys" first.`, 'warn');
+      state.layers[kind] = kind === 'traffic'
+        ? L.tileLayer(`https://{s}.api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${encodeURIComponent(key)}`, { opacity: 0.7, subdomains: ['a', 'b', 'c', 'd'] })
+        : L.tileLayer(`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${encodeURIComponent(key)}`, { opacity: 0.5 });
+      state.layers[kind].addTo(map);
+      btn.setAttribute('aria-pressed', 'true');
+    }
+
+    /* ==================================================================
+       SMART ROUTE
+       Road geometry: OSRM public routing (free, no key, alternatives supported).
+       Hazards: active incidents from the CityLens data layer, checked against each route.
+       ================================================================== */
+    function ensureRouteMap() {
+      if (!hasLeaflet()) return null;
+      if (!state.maps.route) {
+        state.maps.route = makeMap('map-route', 11);
+        state.routeLayer = L.layerGroup().addTo(state.maps.route);
+      }
+      return state.maps.route;
+    }
+
+    function setRouteMessage(message, kind = 'info') { setAlert('route-message', message, kind); }
+
+    async function fetchRoutes(o, d) {
+      const url = `${CONFIG.OSRM_URL}${o.lng},${o.lat};${d.lng},${d.lat}?alternatives=true&overview=full&geometries=geojson`;
+      const res = await fetchWithTimeout(url, 10000);
+      const data = await res.json();
+      if (data.code !== 'Ok' || !data.routes || !data.routes.length) throw new Error('No routes returned');
+      return data.routes.map(r => ({
+        coords: r.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
+        distanceKm: r.distance / 1000,
+        durationMin: r.duration / 60,
+        approximate: false
+      }));
+    }
+
+    function straightLineRoute(o, d) {
+      const steps = 30, coords = [];
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        coords.push([o.lat + (d.lat - o.lat) * t, o.lng + (d.lng - o.lng) * t]);
+      }
+      return { coords, distanceKm: distanceM(o.lat, o.lng, d.lat, d.lng) / 1000, durationMin: null, approximate: true };
+    }
+
+    function analyseRoute(route, activeIncidents) {
+      const hazards = [];
+      for (const inc of activeIncidents) {
+        const dist = minDistanceToPolyline({ lat: inc.lat, lng: inc.lng }, route.coords);
+        if (dist <= CONFIG.NEAR_M) hazards.push({ inc, dist });
+      }
+      // Weight by severity. Unverified AI detections count half, since they are unconfirmed.
+      const score = hazards.reduce((sum, h) => {
+        const factor = h.inc.source === 'ai' && h.inc.status === 'pending' ? 0.5 : 1;
+        return sum + SEVERITY[h.inc.sev].weight * factor;
+      }, 0);
+      return { ...route, hazards, score };
+    }
+
+    function explainRecommendation(rec, all) {
+      const parts = [];
+      const n = rec.hazards.length;
+      if (n === 0) parts.push(`No active incident lies within ${CONFIG.NEAR_M} m of this route.`);
+      else parts.push(`This route passes ${n} active incident${n > 1 ? 's' : ''} within ${CONFIG.NEAR_M} m.`);
+
+      const others = all.filter(r => r !== rec);
+      const worse = others.filter(r => r.score > rec.score).length;
+      if (worse) parts.push(`${worse} alternative${worse > 1 ? 's have' : ' has'} a higher hazard score.`);
+
+      const durations = all.map(r => r.durationMin).filter(v => v != null);
+      if (rec.durationMin != null && durations.length) {
+        const fastest = Math.min(...durations);
+        const extra = rec.durationMin - fastest;
+        if (extra >= 1) parts.push(`It takes about ${Math.round(extra)} min longer than the fastest option. That is the trade-off for avoiding hazards.`);
+      }
+      return parts.join(' ');
+    }
+
+    function drawRoute(o, d, analysed, rec) {
+      const map = ensureRouteMap();
+      if (!map) return;
+      state.routeLayer.clearLayers();
+      analysed.forEach(r => {
+        const isRec = r === rec;
+        L.polyline(r.coords, {
+          color: isRec ? '#2563eb' : '#94a3b8',
+          weight: isRec ? 7 : 5,
+          opacity: isRec ? 0.9 : 0.8,
+          dashArray: isRec ? null : '8 8'
+        }).addTo(state.routeLayer);
+      });
+      rec.hazards.forEach(h => {
+        L.circleMarker([h.inc.lat, h.inc.lng], {
+          radius: 8, color: '#fff', weight: 2, fillColor: SEVERITY[h.inc.sev].color, fillOpacity: 1, bubblingMouseEvents: false
+        }).bindTooltip(el('span', { text: h.inc.title })).addTo(state.routeLayer);
+      });
+      L.marker([o.lat, o.lng]).bindTooltip(el('span', { text: `Start: ${o.name}` })).addTo(state.routeLayer);
+      L.marker([d.lat, d.lng]).bindTooltip(el('span', { text: `Destination: ${d.name}` })).addTo(state.routeLayer);
+      map.fitBounds(L.polyline(rec.coords).getBounds(), { padding: [30, 30] });
+    }
+
+    function renderRouteResults(analysed, rec, approximate) {
+      const box = $('route-results');
+      const explanation = explainRecommendation(rec, analysed);
+      box.replaceChildren(
+        el('h2', { text: 'Recommended route' }),
+        el('p', { class: 'rec-summary', text: explanation }),
+        el('ul', { class: 'route-list' }, ...analysed.map((r, i) => el('li', { class: r === rec ? 'recommended' : '' },
+          el('strong', { text: `${r === rec ? 'Recommended: ' : ''}Route ${i + 1}` }),
+          el('span', { text: `${r.distanceKm.toFixed(1)} km${r.durationMin != null ? ` · about ${Math.round(r.durationMin)} min` : ''}` }),
+          el('span', { text: `${r.hazards.length} hazard${r.hazards.length === 1 ? '' : 's'}` })))),
+        rec.hazards.length ? el('h3', { text: 'Hazards on the recommended route' }) : null,
+        rec.hazards.length ? el('ul', { class: 'route-list' }, ...rec.hazards.map(h =>
+          el('li', { text: `${h.inc.title} · ${SEVERITY[h.inc.sev].label} · ${Math.round(h.dist)} m from the route` }))) : null,
+        approximate ? el('p', { class: 'hint', text: 'Road routing is unavailable, so this is a straight-line estimate. Hazard checks still apply, but road distances are not known.' }) : null,
+        el('p', { class: 'hint', text: 'Blue line = recommended route. Dashed grey = alternatives. Route geometry from OSRM; hazards from CityLens incident data.' }),
+        el('div', { class: 'btn-row', style: 'margin-top:12px;' },
+          el('a', {
+            class: 'btn-primary btn-compact',
+            style: 'text-decoration:none; display:inline-flex; align-items:center; gap:6px;',
+            href: `/cmi?origin=${encodeURIComponent($('route-origin').value)}&destination=${encodeURIComponent($('route-dest').value)}`,
+            text: '🚀 Open in CMI AI Corridor Navigator'
+          })
+        )
+      );
+    }
+
+    async function handleRouteSubmit() {
+      if (state.routeBusy) return;
+      const originText = $('route-origin').value;
+      const destText = $('route-dest').value;
+      if (!originText.trim() || !destText.trim()) return setRouteMessage('Enter both a starting point and a destination.', 'error');
+
+      state.routeBusy = true;
+      $('route-submit').disabled = true;
+      setRouteMessage('Finding both places…');
+      try {
+        const [o, d] = await Promise.all([resolvePlace(originText), resolvePlace(destText)]);
+        if (!o || !d) {
+          const missing = [!o && 'the starting point', !d && 'the destination'].filter(Boolean).join(' and ');
+          return setRouteMessage(`Could not find ${missing} inside Chennai. Try one of the suggested areas.`, 'error');
+        }
+        if (distanceM(o.lat, o.lng, d.lat, d.lng) < 100) return setRouteMessage('The starting point and destination are the same place.', 'error');
+
+        setRouteMessage('Calculating road routes…');
+        let routes, approximate = false;
+        try {
+          routes = await fetchRoutes(o, d);
+        } catch (err) {
+          approximate = true;
+          routes = [straightLineRoute(o, d)];
+        }
+
+        const active = state.incidents.filter(isActive);
+        const analysed = routes.map(r => analyseRoute(r, active));
+        const ranked = [...analysed].sort((a, b) => a.score - b.score || (a.durationMin ?? a.distanceKm) - (b.durationMin ?? b.distanceKm));
+        const rec = ranked[0];
+
+        drawRoute(o, d, analysed, rec);
+        renderRouteResults(analysed, rec, approximate);
+        setRouteMessage(approximate ? 'Road routing unavailable. Showing a straight-line estimate.' : 'Route calculated.', approximate ? 'warn' : 'success');
+      } finally {
+        state.routeBusy = false;
+        $('route-submit').disabled = false;
+      }
+    }
+
+    /* ==================================================================
+       ADMIN
+       ================================================================== */
+    function renderAdminRequests() {
+      const pending = state.users.filter(u => u.role === 'admin' && u.status === 'pending');
+      const box = $('admin-requests');
+      if (!pending.length) {
+        box.replaceChildren(el('p', { class: 'empty', text: 'No pending admin access requests.' }));
+        return;
+      }
+      box.replaceChildren(...pending.map(u => el('div', { class: 'card', style: 'margin-bottom:10px;' },
+        el('h3', { class: 'card-title', text: u.name }),
+        el('p', { class: 'card-meta', text: `${u.email} · Employee ID ${u.employeeId} · Requested ${fmtDate(u.createdAt)}` }),
+        el('div', { class: 'btn-row' },
+          el('button', { class: 'btn-primary btn-compact admin', type: 'button', 'aria-label': `Approve ${u.name}`, text: 'Approve', onclick: () => runAction(() => reviewAdminRequest(u.id, 'active')) }),
+          el('button', { class: 'btn-outline btn-compact', type: 'button', 'aria-label': `Reject ${u.name}`, text: 'Reject', onclick: () => runAction(() => reviewAdminRequest(u.id, 'rejected')) })))));
+    }
+
+    async function transitionIncident(id, to, note) {
+      const admin = requireUser('admin');
+      if (!admin) return;
+      const inc = byId(id);
+      if (!inc) return;
+      if (!(TRANSITIONS[inc.status] || []).includes(to)) return toast('That status change is not allowed from the current status.', 'warn');
+      await updateIncident(id, { status: to }, { by: 'admin', to, note: note || `Status changed to ${STATUS_LABEL[to]}` });
+      await refreshAll();
+      toast(`Status updated to ${STATUS_LABEL[to]}.`, 'success');
+    }
+
+    function renderAdminDetail() {
+      const box = $('admin-detail');
+      const inc = state.adminSelected ? byId(state.adminSelected) : null;
+      if (!inc) { box.hidden = true; box.replaceChildren(); return; }
+      box.hidden = false;
+
+      const next = TRANSITIONS[inc.status] || [];
+      const noteId = 'admin-note';
+      const photo = inc.photo && inc.photo.startsWith('data:image/')
+        ? el('img', { class: 'evidence', src: inc.photo, alt: 'Photo submitted with this report' }) : null;
+
+      box.replaceChildren(
+        el('h2', { id: 'admin-detail-title', tabindex: '-1', text: `Manage: ${inc.title}` }),
+        el('p', { class: 'card-meta', text: `${CATEGORIES[inc.cat]} · ${SEVERITY[inc.sev].label} · ${inc.loc} · ${sourceText(inc)}` }),
+        inc.description ? el('p', { text: inc.description }) : null,
+        photo,
+        el('div', { class: 'badge-row' }, statusBadge(inc), el('span', { class: 'hint', text: `${inc.verifiedBy.length} independent confirmations` })),
+        el('div', { class: 'form-group' },
+          el('label', { for: noteId, text: 'Public note for the history (optional)' }),
+          el('input', { id: noteId, class: 'form-control', maxlength: '200', type: 'text' })),
+        next.length
+          ? el('div', { class: 'btn-row' }, ...next.map(s => el('button', {
+              class: 'btn-primary btn-compact admin', type: 'button', text: TRANSITION_LABEL[s],
+              onclick: () => runAction(() => transitionIncident(inc.id, s, $(noteId).value.trim()))
+            })))
+          : el('p', { class: 'hint', text: 'No further status changes are available.' }),
+        el('h3', { text: 'History' }),
+        el('ol', { class: 'history' }, ...inc.history.map(h =>
+          el('li', { text: `${fmtDate(h.at)} · ${STATUS_LABEL[h.to] || h.to} · by ${h.by}: ${h.note}` }))),
+        el('div', { class: 'btn-row' },
+          el('button', { class: 'btn-outline btn-compact', type: 'button', text: 'View on map', onclick: () => { state.adminSelected = null; renderAdminDetail(); openDetail(inc.id); } }),
+          el('button', { class: 'btn-outline btn-compact', type: 'button', text: 'Close', onclick: () => { state.adminSelected = null; renderAdminDetail(); } })));
+    }
+
+    function renderAdmin() {
+      renderAdminRequests();
+      const filter = $('admin-filter').value;
+      const rows = state.incidents
+        .filter(i => filter === 'all' || i.status === filter)
+        .sort((a, b) => b.verifiedBy.length - a.verifiedBy.length || b.reportedAt - a.reportedAt);
+      $('admin-table').replaceChildren(...(rows.length ? rows.map(inc => el('tr', {},
+        el('td', { 'data-label': 'Incident', text: inc.title }),
+        el('td', { 'data-label': 'Category', text: CATEGORIES[inc.cat] }),
+        el('td', { 'data-label': 'Severity' }, el('span', { class: `chip chip-${inc.sev}`, text: SEVERITY[inc.sev].label })),
+        el('td', { 'data-label': 'Source', text: inc.source === 'ai' ? 'AI-detected (simulated)' : inc.source === 'official' ? 'Official' : 'Citizen' }),
+        el('td', { 'data-label': 'Confirmations', text: String(inc.verifiedBy.length) }),
+        el('td', { 'data-label': 'Status' }, statusBadge(inc)),
+        el('td', { 'data-label': 'Action' }, el('button', {
+          class: 'btn-small', type: 'button', 'aria-label': `Manage ${inc.title}`, text: 'Manage',
+          onclick: () => { state.adminSelected = inc.id; renderAdminDetail(); $('admin-detail-title') && $('admin-detail-title').focus(); }
+        }))
+      )) : [el('tr', {}, el('td', { colspan: '7', text: 'No incidents with this status.' }))]));
+      renderAdminDetail();
+    }
+
+    let resetArmed = false;
+    function resetDemo() {
+      if (!resetArmed) {
+        resetArmed = true;
+        $('btn-reset-demo').textContent = 'Click again to confirm reset';
+        setTimeout(() => { resetArmed = false; $('btn-reset-demo').textContent = 'Reset demo data'; }, 5000);
+        return;
+      }
+      resetArmed = false;
+      $('btn-reset-demo').textContent = 'Reset demo data';
+      runAction(async () => {
+        await Store.resetAll();
+        await loadState();
+        state.selectedId = null;
+        state.adminSelected = null;
+        resetReportForm();
+        toast('Demo data reset. Please log in again.', 'success');
+        logout();
+      });
+    }
+
+    /* ==================================================================
+       STORAGE SYNC (other tabs)
+       ================================================================== */
+    async function onStorageChange(e) {
+      if (!e.key || !e.key.startsWith(P)) return;
+      const hadUser = !!state.user;
+      await loadState();
+      if (hadUser && !state.user) {
+        showPage('auth-gateway');
+        toast('You were logged out in another tab.', 'info');
+      }
+      refreshAll();
+    }
+
+    /* ==================================================================
+       INIT
+       ================================================================== */
+    function populateControls() {
+      fillSelect('filter-cat', [['all', 'All categories'], ...Object.entries(CATEGORIES)]);
+      fillSelect('filter-sev', [['all', 'All severities'], ...Object.entries(SEVERITY).map(([k, v]) => [k, v.label])]);
+      fillSelect('filter-status', [['active', 'Active (not resolved)'], ['all', 'All statuses'], ...Object.entries(STATUS_LABEL)]);
+      fillSelect('rep-cat', Object.entries(CATEGORIES), 'Pothole');
+      fillSelect('rep-sev', Object.entries(SEVERITY).map(([k, v]) => [k, v.label]), 'medium');
+      fillSelect('admin-filter', [['all', 'All statuses'], ...Object.entries(STATUS_LABEL)]);
+      $('area-list').replaceChildren(...AREAS.map(a => el('option', { value: a.name })));
+    }
+
+    function bindEvents() {
+      document.querySelectorAll('[data-nav]').forEach(b => b.addEventListener('click', () => showPage(b.dataset.nav)));
+      document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => showPage(b.dataset.go)));
+      $('btn-logout').addEventListener('click', logout);
+      $('banner-close').addEventListener('click', () => { $('app-banner').hidden = true; });
+
+      $('form-citizen-login').addEventListener('submit', e => { e.preventDefault(); runAction(() => handleLogin(e.target, 'citizen')); });
+      $('form-admin-login').addEventListener('submit', e => { e.preventDefault(); runAction(() => handleLogin(e.target, 'admin')); });
+      $('form-citizen-signup').addEventListener('submit', e => { e.preventDefault(); runAction(() => handleCitizenSignup(e.target)); });
+      $('form-admin-request').addEventListener('submit', e => { e.preventDefault(); runAction(() => handleAdminRequest(e.target)); });
+
+      $('form-map-search').addEventListener('submit', e => { e.preventDefault(); runAction(searchMap); });
+      ['filter-cat', 'filter-sev', 'filter-status'].forEach(id => $(id).addEventListener('change', () => { renderFeed(); renderMarkers(); }));
+      $('btn-detail-back').addEventListener('click', closeDetail);
+      $('layer-btn-traffic').addEventListener('click', () => toggleLayer('traffic'));
+      $('layer-btn-rain').addEventListener('click', () => toggleLayer('rain'));
+      $('btn-save-keys').addEventListener('click', saveSessionKeys);
+
+      $('form-report').addEventListener('submit', e => { e.preventDefault(); runAction(submitReport); });
+      $('rep-cat').addEventListener('change', renderDuplicates);
+      $('rep-photo').addEventListener('change', e => handlePhotoChange(e.target));
+      $('btn-rep-search').addEventListener('click', () => runAction(searchIntoPicker));
+      $('rep-search').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); runAction(searchIntoPicker); } });
+      $('btn-rep-geo').addEventListener('click', useMyLocation);
+      $('btn-pin-centre').addEventListener('click', () => {
+        const map = ensurePickerMap();
+        if (!map) return setPinStatus('The map is unavailable. Use search or your location instead.', 'error');
+        const c = map.getCenter();
+        setPin(c.lat, c.lng, { pan: false });
+      });
+
+      $('form-route').addEventListener('submit', e => { e.preventDefault(); handleRouteSubmit(); });
+      $('admin-filter').addEventListener('change', renderAdmin);
+      $('btn-reset-demo').addEventListener('click', resetDemo);
+      window.addEventListener('storage', onStorageChange);
+    }
+
+    async function init() {
+      populateControls();
+      bindEvents();
+      loadKeyFields();
+
+      if (!window.crypto || !window.crypto.subtle) {
+        showBanner('This browser cannot hash passwords here. Open CityLens over https or localhost to log in.', 'error');
+      }
+      if (!hasLeaflet()) {
+        showBanner('The map library failed to load (check your internet connection). The feed, reporting and route summary still work.', 'warn');
+      }
+
+      try {
+        await Store.ensureSeeded();
+        await loadState();
+      } catch (err) {
+        console.error(err);
+        showBanner('Could not read browser storage. Check that cookies and site data are allowed.', 'error');
+      }
+
+      applyShell();
+      await refreshAll();
+      showPage(state.user ? 'landing' : 'auth-gateway', { focus: false });
+    }
+
+    init();
+  </script>
+
+  <!-- =====================================================
+       SUPABASE INTEGRATION — CityLens Database Layer
+       Project: https://wuqkasfqcksgayyamvma.supabase.co
+       All incident reports, users, and credits are
+       stored in Supabase and shared in real-time.
+       ===================================================== -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    /* ================================================================
+       Supabase integration — overrides the localStorage Store object
+       with a Supabase-backed version that keeps localStorage as a
+       fast-access cache and syncs every write to the cloud.
+       ================================================================ */
+    (async function initSupabaseLayer() {
+
+      if (!window.supabase) {
+        console.warn('[CMI-Supabase] Library not loaded.');
+        return;
+      }
+
+      let sbUrl = 'https://wuqkasfqcksgayyamvma.supabase.co';
+      let sbKey = 'sb_publishable_6rXTJ2XpsEoDlslFqixhHQ_uy7pGqsC';
+
+      try {
+        const cfgRes = await fetch('/api/config');
+        if (cfgRes.ok) {
+          const cfg = await cfgRes.json();
+          if (cfg.supabase_url && cfg.supabase_key) {
+            sbUrl = cfg.supabase_url;
+            sbKey = cfg.supabase_key;
+            console.log('[CMI-Supabase] Config loaded dynamically from backend environment variables');
+          }
+        }
+      } catch (e) {
+        console.log('[CMI-Supabase] Using default configured credentials');
+      }
+
+      const _sb = window.supabase.createClient(sbUrl, sbKey);
+      window._supabase = _sb;   // expose for DevTools debugging
+
+      // ── Converter helpers (camelCase ↔ snake_case) ───────────────
+
+      function incToRow(i) {
+        return {
+          id:          i.id,
+          title:       i.title,
+          cat:         i.cat,
+          sev:         i.sev,
+          loc:         i.loc || '',
+          lat:         i.lat,
+          lng:         i.lng,
+          source:      i.source,
+          reporter_id: i.reporterId || null,
+          description: i.description || null,
+          photo_url:   i.photo    || null,
+          confidence:  typeof i.confidence === 'number' ? i.confidence : null,
+          status:      i.status,
+          verified_by: i.verifiedBy || [],
+          history:     i.history    || [],
+          reported_at: new Date(i.reportedAt).toISOString(),
+        };
+      }
+
+      function rowToInc(r) {
+        return {
+          id:          r.id,
+          title:       r.title,
+          cat:         r.cat,
+          sev:         r.sev,
+          loc:         r.loc,
+          lat:         r.lat,
+          lng:         r.lng,
+          source:      r.source,
+          reporterId:  r.reporter_id,
+          description: r.description,
+          photo:       r.photo_url,
+          confidence:  r.confidence,
+          status:      r.status,
+          verifiedBy:  r.verified_by || [],
+          history:     r.history     || [],
+          reportedAt:  new Date(r.reported_at).getTime(),
+        };
+      }
+
+      function userToRow(u) {
+        return {
+          id:          u.id,
+          name:        u.name,
+          email:       u.email,
+          role:        u.role     || 'citizen',
+          status:      u.status   || 'active',
+          employee_id: u.employeeId || null,
+          salt:        u.salt || null,
+          hash:        u.hash || null,
+        };
+      }
+
+      function rowToUser(r) {
+        // Merge with local record to preserve salt/hash for browser auth fallback
+        const local = readKey('users', []).find(u => u.id === r.id) || {};
+        return {
+          ...local,
+          id:         r.id,
+          name:       r.name,
+          email:      r.email,
+          role:       r.role,
+          status:     r.status,
+          employeeId: r.employee_id,
+        };
+      }
+
+      // ── Override Store.getIncidents ──────────────────────────────
+
+      Store.getIncidents = async function() {
+        try {
+          const { data, error } = await _sb
+            .from('cmi_incidents')
+            .select('*')
+            .order('reported_at', { ascending: false });
+          if (error) throw error;
+          return (data || []).map(rowToInc);
+        } catch(e) {
+          console.warn('[CMI-Supabase] getIncidents fallback:', e.message);
+          return readKey('incidents', []);
+        }
+      };
+
+      // ── Override Store.saveIncidents ─────────────────────────────
+      // Called by commitIncidents() after every change.
+      // Keeps localStorage as a cache; upserts each row to Supabase.
+
+      Store.saveIncidents = async function(incidents) {
+        writeKey('incidents', incidents);            // fast local cache
+        try {
+          for (const inc of incidents) {
+            const { error } = await _sb
+              .from('cmi_incidents')
+              .upsert(incToRow(inc), { onConflict: 'id' });
+            if (error) console.warn('[CMI-Supabase] incident upsert:', error.message);
+          }
+        } catch(e) {
+          console.warn('[CMI-Supabase] saveIncidents:', e.message);
+        }
+      };
+
+      // ── Override Store.getUsers ──────────────────────────────────
+
+      Store.getUsers = async function() {
+        try {
+          const { data, error } = await _sb.from('cmi_users').select('*');
+          if (error) throw error;
+          return (data || []).map(rowToUser);
+        } catch(e) {
+          console.warn('[CMI-Supabase] getUsers fallback:', e.message);
+          return readKey('users', []);
+        }
+      };
+
+      // ── Override Store.saveUsers ─────────────────────────────────
+
+      Store.saveUsers = async function(users) {
+        writeKey('users', users);
+        try {
+          for (const u of users) {
+            const { error } = await _sb
+              .from('cmi_users')
+              .upsert(userToRow(u), { onConflict: 'id' });
+            if (error) console.warn('[CMI-Supabase] user upsert:', error.message);
+          }
+        } catch(e) {
+          console.warn('[CMI-Supabase] saveUsers:', e.message);
+        }
+      };
+
+      // ── Override Store.addCredit ─────────────────────────────────
+      // Idempotent: event_id is the PK in cmi_ledger.
+
+      Store.addCredit = async function(entry) {
+        const ledger = readKey('ledger', []);
+        if (ledger.some(e => e.id === entry.id)) return false;
+        ledger.push({ ...entry, at: Date.now() });
+        writeKey('ledger', ledger);
+        try {
+          await _sb.from('cmi_ledger').upsert(
+            { event_id: entry.id, user_id: entry.userId,
+               amount: entry.amount, reason: entry.reason || '' },
+            { onConflict: 'event_id', ignoreDuplicates: true }
+          );
+        } catch(e) {
+          console.warn('[CMI-Supabase] addCredit:', e.message);
+        }
+        return true;
+      };
+
+      // ── Seed demo data to Supabase if table is empty ─────────────
+
+      async function seedToSupabase() {
+        try {
+          const { count, error } = await _sb
+            .from('cmi_incidents')
+            .select('id', { count: 'exact', head: true });
+          if (error) throw error;
+          if (!count || count === 0) {
+            console.log('[CMI-Supabase] Empty table — seeding demo incidents...');
+            for (const inc of seedIncidents()) {
+              const { error: e2 } = await _sb
+                .from('cmi_incidents')
+                .upsert(incToRow(inc), { onConflict: 'id' });
+              if (e2) console.warn('[CMI-Supabase] seed error:', e2.message);
+            }
+            console.log('[CMI-Supabase] Seeded 7 demo incidents.');
+          }
+        } catch(e) {
+          console.warn('[CMI-Supabase] seedToSupabase:', e.message);
+        }
+      }
+
+      async function seedUsersToSupabase() {
+        try {
+          const localUsers = readKey('users', []);
+          for (const u of localUsers) {
+            const { error } = await _sb
+              .from('cmi_users')
+              .upsert(userToRow(u), { onConflict: 'id' });
+            if (error) console.warn('[CMI-Supabase] user seed error:', error.message);
+          }
+        } catch(e) {
+          console.warn('[CMI-Supabase] seedUsersToSupabase:', e.message);
+        }
+      }
+
+      // ── Real-time listener (live updates from other users) ────────
+
+      _sb.channel('cmi-incidents-live')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'cmi_incidents' },
+          async () => {
+            state.incidents = await Store.getIncidents();
+            writeKey('incidents', state.incidents);
+            if (state.currentPage === 'map')     { renderFeed(); renderMarkers(); }
+            if (state.currentPage === 'landing') { renderLandingStats(); }
+            if (state.currentPage === 'route')   { /* route page doesn't auto-refresh */ }
+          }
+        )
+        .subscribe(status => {
+          if (status === 'SUBSCRIBED') {
+            console.log('[CMI-Supabase] Real-time channel active');
+          }
+        });
+
+      // ── Reload all state from Supabase ───────────────────────────
+
+      try {
+        await seedToSupabase();
+        await seedUsersToSupabase();
+
+        state.incidents = await Store.getIncidents();
+        state.users     = await Store.getUsers();
+        state.ledger    = await Store.getLedger();
+
+        // Re-render the current visible page with fresh Supabase data
+        await refreshAll();
+        if (state.currentPage === 'landing') renderLandingStats();
+        if (state.currentPage === 'map')     { renderFeed(); renderMarkers(); }
+
+        console.log(
+          '[CMI-Supabase] Connected.',
+          'Incidents:', state.incidents.length,
+          '| Users:', state.users.length
+        );
+        toast('Supabase connected — live data loaded (' + state.incidents.length + ' incidents)', 'success');
+      } catch(e) {
+        console.error('[CMI-Supabase] Init error:', e);
+        toast('Supabase connection failed — using local data', 'warn');
+      }
+
+    })();
+  </script>
+
+</body>
+</html>

@@ -604,18 +604,24 @@
         </div>
     </div>
 
-    <!-- Top-Right Autonomous Periodic LLM Refresh Widget -->
-    <div class="auto-refresh-widget">
-        <div class="pulse-beacon"></div>
-        <div>
-            <strong>Auto-LLM:</strong>
-            <span class="countdown-badge" id="countdown-timer">02:00</span>
+    <!-- Top-Right Autonomous Periodic LLM Refresh & Citizen Portal Link -->
+    <div style="position: absolute; top: 16px; right: 16px; display: flex; align-items: center; gap: 8px; z-index: 1000;">
+        <a href="/portal" style="text-decoration: none; display: flex; align-items: center; gap: 6px; font-weight: 600; color: #1a73e8; background: #ffffff; padding: 7px 14px; border-radius: 24px; font-size: 0.82rem; box-shadow: 0 2px 10px rgba(60,64,67,0.2); transition: all 0.2s; border: 1px solid #dadce0;">
+            <span style="font-size: 0.95rem;">🏛️</span>
+            <span>Citizen Portal</span>
+        </a>
+        <div class="auto-refresh-widget" style="position: static;">
+            <div class="pulse-beacon"></div>
+            <div>
+                <strong>Auto-LLM:</strong>
+                <span class="countdown-badge" id="countdown-timer">02:00</span>
+            </div>
+            <select class="interval-select" id="refresh-interval-select" title="Change Auto-Refresh Interval">
+                <option value="60">Every 1 min</option>
+                <option value="120" selected>Every 2 min</option>
+                <option value="300">Every 5 min</option>
+            </select>
         </div>
-        <select class="interval-select" id="refresh-interval-select" title="Change Auto-Refresh Interval">
-            <option value="60">Every 1 min</option>
-            <option value="120" selected>Every 2 min</option>
-            <option value="300">Every 5 min</option>
-        </select>
     </div>
 
     <!-- Bottom-Left Chennai Locked Scope Badge -->
@@ -1089,6 +1095,11 @@
 
         // Initial route calculation on boot
         window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const origParam = urlParams.get('origin');
+            const destParam = urlParams.get('destination');
+            if (origParam) inputOrigin.value = origParam;
+            if (destParam) inputDest.value = destParam;
             calculateAndRenderRoute(false);
             updateCountdownBadge();
         });

@@ -210,6 +210,19 @@ def create_router(
         except Exception as exc:
             return {"status": "error", "detail": str(exc)}
 
+    # ── GET /api/config ────────────────────────────────────────
+    @router.get("/config", summary="Client configuration from environment variables")
+    async def get_client_config():
+        """Returns public client configuration dynamically loaded from environment variables."""
+        from config import get_settings
+        settings = get_settings()
+        return {
+            "supabase_url": settings.supabase_url,
+            "supabase_key": settings.supabase_key,
+            "app_env": settings.app_env,
+            "version": "0.2.0",
+        }
+
     # ── GET /api/health ────────────────────────────────────────
     @router.get("/health", response_model=HealthResponse)
     async def health_check():

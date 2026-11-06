@@ -296,6 +296,7 @@
       <button class="nav-btn" type="button" data-nav="report" data-citizen-only>Report Incident</button>
       <button class="nav-btn" type="button" data-nav="route">Smart Route</button>
       <button class="nav-btn" type="button" data-nav="admin" data-admin-only hidden>Admin Center</button>
+      <a href="/cmi" class="nav-btn" style="text-decoration:none; color:#1a73e8; font-weight:700; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; display:inline-flex; align-items:center; gap:4px;"><span>🧭 CMI AI Map</span></a>
     </nav>
     <div class="header-right">
       <div class="badge-credits" id="credit-badge" title="Credits are earned by reporting (+10) and confirming (+10) hazards.">🏆 <span id="user-credits">0</span> Credits</div>
@@ -459,6 +460,7 @@
       <div class="btn-group">
         <button class="btn-primary btn-wide" type="button" data-go="map">Open live map</button>
         <button class="btn-outline" type="button" data-go="report" data-citizen-only>Report a hazard</button>
+        <a href="/cmi" class="btn-primary" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; gap:6px; background:#10b981; min-height:44px; padding:12px 22px; border-radius:8px; font-weight:700;"><span>🧭 Open AI Corridor Map</span></a>
       </div>
       <dl class="stats">
         <div class="stat"><dt>Active incidents</dt><dd id="stat-active">0</dd></div>
@@ -1792,7 +1794,15 @@
         rec.hazards.length ? el('ul', { class: 'route-list' }, ...rec.hazards.map(h =>
           el('li', { text: `${h.inc.title} · ${SEVERITY[h.inc.sev].label} · ${Math.round(h.dist)} m from the route` }))) : null,
         approximate ? el('p', { class: 'hint', text: 'Road routing is unavailable, so this is a straight-line estimate. Hazard checks still apply, but road distances are not known.' }) : null,
-        el('p', { class: 'hint', text: 'Blue line = recommended route. Dashed grey = alternatives. Route geometry from OSRM; hazards from CityLens incident data.' })
+        el('p', { class: 'hint', text: 'Blue line = recommended route. Dashed grey = alternatives. Route geometry from OSRM; hazards from CityLens incident data.' }),
+        el('div', { class: 'btn-row', style: 'margin-top:12px;' },
+          el('a', {
+            class: 'btn-primary btn-compact',
+            style: 'text-decoration:none; display:inline-flex; align-items:center; gap:6px;',
+            href: `/cmi?origin=${encodeURIComponent($('route-origin').value)}&destination=${encodeURIComponent($('route-dest').value)}`,
+            text: '🚀 Open in CMI AI Corridor Navigator'
+          })
+        )
       );
     }
 
@@ -2053,10 +2063,24 @@
         return;
       }
 
-      const _sb = window.supabase.createClient(
-        'https://wuqkasfqcksgayyamvma.supabase.co',
-        'sb_publishable_6rXTJ2XpsEoDlslFqixhHQ_uy7pGqsC'
-      );
+      let sbUrl = 'https://wuqkasfqcksgayyamvma.supabase.co';
+      let sbKey = 'sb_publishable_6rXTJ2XpsEoDlslFqixhHQ_uy7pGqsC';
+
+      try {
+        const cfgRes = await fetch('/api/config');
+        if (cfgRes.ok) {
+          const cfg = await cfgRes.json();
+          if (cfg.supabase_url && cfg.supabase_key) {
+            sbUrl = cfg.supabase_url;
+            sbKey = cfg.supabase_key;
+            console.log('[CMI-Supabase] Config loaded dynamically from backend environment variables');
+          }
+        }
+      } catch (e) {
+        console.log('[CMI-Supabase] Using default configured credentials');
+      }
+
+      const _sb = window.supabase.createClient(sbUrl, sbKey);
       window._supabase = _sb;   // expose for DevTools debugging
 
       // ── Converter helpers (camelCase ↔ snake_case) ───────────────

@@ -122,14 +122,35 @@ def create_app() -> FastAPI:
         )
         logger.info("Static files mounted from: %s", static_dir)
 
-    # ── Serve landing page at root ─────────────────────────────
+    # Mount frontend files (CityLens portal scripts, assets)
+    frontend_dir = DIRS["root"] / "frontend"
+    if frontend_dir.exists():
+        app.mount(
+            "/frontend",
+            StaticFiles(directory=str(frontend_dir)),
+            name="frontend",
+        )
+        logger.info("Frontend files mounted from: %s", frontend_dir)
+
+    # ── Serve CMI AI Corridor Map at root and /cmi ────────────
     @app.get("/", include_in_schema=False)
-    async def serve_landing_page():
-        """Serves the CMI landing page HTML shell."""
+    @app.get("/cmi", include_in_schema=False)
+    async def serve_cmi_map():
+        """Serves the CMI AI Corridor Map interface."""
         index_path = static_dir / "index.html"
         if index_path.exists():
             return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
         return {"message": "CMI API is running. Visit /docs for API documentation."}
+
+    # ── Serve CityLens Citizen Intelligence & Reports Portal ──
+    @app.get("/portal", include_in_schema=False)
+    @app.get("/citylens", include_in_schema=False)
+    async def serve_citylens_portal():
+        """Serves the CityLens Citizen Portal connected with Supabase."""
+        portal_path = frontend_dir / "citylens.html"
+        if portal_path.exists():
+            return HTMLResponse(content=portal_path.read_text(encoding="utf-8"))
+        return {"message": "CityLens portal file not found."}
 
     # ── Startup event ──────────────────────────────────────────
     @app.on_event("startup")
