@@ -27,7 +27,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 
 # ── Configure logging before any engine imports ────────────────
 logging.basicConfig(
@@ -137,6 +137,16 @@ def create_app() -> FastAPI:
             name="frontend",
         )
         logger.info("Frontend files mounted from: %s", frontend_dir)
+
+    # ── Serve Static Assets explicitly ─────────────────────────
+    @app.get("/assets/{filename}", include_in_schema=False)
+    async def serve_asset_file(filename: str):
+        for candidate_dir in [static_dir / "assets", DIRS["root"] / "public" / "assets"]:
+            candidate = candidate_dir / filename
+            if candidate.exists() and candidate.is_file():
+                media_type = "image/png" if filename.endswith(".png") else "application/octet-stream"
+                return FileResponse(str(candidate), media_type=media_type)
+        return Response(status_code=404)
 
     # ── Serve CMI AI Corridor Map at root and /cmi ────────────
     @app.get("/", include_in_schema=False)
