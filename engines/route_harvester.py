@@ -428,11 +428,18 @@ class RouteHarvester:
                     r = routes[0]
                     coords = r.get("geometry", {}).get("coordinates", [])
                     dist_km = r.get("distance", 0.0) / 1000.0
-                    dur_min = r.get("duration", 0.0) / 60.0
+                    raw_dur_min = r.get("duration", 0.0) / 60.0
 
-                    if mode == "transit":
-                        # Chennai Metro / MTC Bus speed model + average headway wait time
+                    # Realistic Chennai multimodal duration modeling
+                    if mode == "walking":
+                        # Average urban walking speed: 4.5 km/h
+                        dur_min = max(2.0, (dist_km / 4.5) * 60.0)
+                    elif mode == "transit":
+                        # Chennai Metro / MTC Bus commercial speed ~22 km/h + 10 min headway/transfer
                         dur_min = (dist_km / 22.0 * 60.0) + 10.0
+                    else:  # driving
+                        # Real Chennai urban traffic model (average 24 km/h with signal delays & congestion)
+                        dur_min = max(raw_dur_min * 1.55, (dist_km / 24.0) * 60.0)
 
                     waypoints = [GeoPoint(lat=c[1], lng=c[0]) for c in coords]
                     logger.info("OSRM road route fetched (%s): %d road coordinates, %.1f km, %.1f min",
