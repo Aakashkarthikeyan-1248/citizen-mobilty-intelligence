@@ -187,6 +187,29 @@ def create_router(
             return {"status": "success", "result": result}
         raise HTTPException(status_code=503, detail="Automation scheduler unavailable")
 
+    # ── GET /api/db/incidents ──────────────────────────────────
+    @router.get(
+        "/db/incidents",
+        summary="Fetch live citizen incidents from Supabase database",
+    )
+    async def get_db_incidents():
+        """Returns all real-time citizen-reported incidents stored in Supabase."""
+        try:
+            import httpx
+            from config import get_settings
+            settings = get_settings()
+            url = f"{settings.supabase_url.rstrip('/')}/rest/v1/cmi_incidents?select=*&order=reported_at.desc"
+            headers = {
+                "apikey": settings.supabase_key,
+                "Authorization": f"Bearer {settings.supabase_key}",
+            }
+            resp = httpx.get(url, headers=headers, timeout=5.0)
+            if resp.status_code == 200:
+                return {"status": "ok", "count": len(resp.json()), "incidents": resp.json()}
+            return {"status": "error", "code": resp.status_code, "detail": resp.text}
+        except Exception as exc:
+            return {"status": "error", "detail": str(exc)}
+
     # ── GET /api/health ────────────────────────────────────────
     @router.get("/health", response_model=HealthResponse)
     async def health_check():

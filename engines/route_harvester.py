@@ -569,6 +569,47 @@ class RouteHarvester:
         ),
     ]
 
+    def _fetch_supabase_incidents(self, corridor: Polygon) -> list[CorridorAlert]:
+        """Queries live Supabase cmi_incidents database for active citizen alerts in corridor."""
+        from shapely.geometry import Point
+        try:
+            from config import get_settings
+            settings = get_settings()
+            if not settings.supabase_url or not settings.supabase_key:
+                return []
+            url = f"{settings.supabase_url.rstrip('/')}/rest/v1/cmi_incidents?select=*&status=neq.resolved"
+            headers = {
+                "apikey": settings.supabase_key,
+                "Authorization": f"Bearer {settings.supabase_key}",
+            }
+            resp = httpx.get(url, headers=headers, timeout=2.5)
+            if resp.status_code == 200:
+                rows = resp.json()
+                results = []
+                for r in rows:
+                    lat = float(r.get("lat", 0))
+                    lng = float(r.get("lng", 0))
+                    pt = Point(lng, lat)
+                    if corridor.contains(pt) or corridor.distance(pt) < 0.015:
+                        sev = r.get("sev", "medium").lower()
+                        cat = r.get("cat", "hazard").lower()
+                        results.append(
+                            CorridorAlert(
+                                headline=f"Citizen Report: {r.get('title', 'Hazard')}",
+                                description=r.get("description") or f"Reported at {r.get('loc', 'Chennai')}",
+                                lat=lat,
+                                lng=lng,
+                                severity=sev,
+                                category=cat,
+                                source="citizen_db",
+                                marker_color=self.SEVERITY_COLORS.get(sev, "orange"),
+                            )
+                        )
+                return results
+        except Exception as exc:
+            logger.debug("Supabase incidents fetch skipped: %s", exc)
+        return []
+
     def _harvest_corridor_alerts(
         self,
         corridor: Polygon,
@@ -582,7 +623,8 @@ class RouteHarvester:
         realistic path-localized alerts along the user's specific intermediate waypoints.
         NEVER dumps irrelevant Anna Salai alerts onto random unrelated routes!
         """
-        filtered = []
+        db_alerts = self._fetch_supabase_incidents(corridor)
+        filtered = list(db_alerts)
         for alert in self.CHENNAI_HAZARD_REGISTRY:
             from shapely.geometry import Point
             pt = Point(alert.lng, alert.lat)

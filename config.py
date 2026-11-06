@@ -68,6 +68,16 @@ class Settings(BaseSettings):
         description="Google Maps Platform key (Directions, Geocoding)",
     )
 
+    # ── Supabase Database ─────────────────────────────────────
+    supabase_url: str = Field(
+        default="https://wuqkasfqcksgayyamvma.supabase.co",
+        description="Supabase Project REST URL",
+    )
+    supabase_key: str = Field(
+        default="sb_publishable_6rXTJ2XpsEoDlslFqixhHQ_uy7pGqsC",
+        description="Supabase public anon key",
+    )
+
     # ── DevOps Metadata ───────────────────────────────────────
     github_username: str = Field(default="Aakashkarthikeyan-1248")
     github_repo_name: str = Field(default="citizen-mobility-intelligence")
