@@ -1366,6 +1366,9 @@
             justify-content: center;
             padding: 16px;
         }
+        .auth-modal-overlay.active {
+            display: flex !important;
+        }
         .auth-modal-window {
             background: #ffffff;
             border-radius: 18px;
@@ -2183,7 +2186,7 @@
             if (targetBtn) targetBtn.classList.add('active');
 
             // Invalidate map sizes so tiles expand properly
-            setTimeout(() => {
+            setTimeout(async () => {
                 if (viewName === 'cmi-navigator') {
                     if (typeof initCmiMap === 'function') initCmiMap();
                     if (state.maps.cmi) {
@@ -2204,6 +2207,12 @@
                     renderAdminTable();
                 }
             }, 60);
+
+            setTimeout(() => {
+                if (viewName === 'cmi-navigator' && state.maps.cmi) {
+                    state.maps.cmi.invalidateSize();
+                }
+            }, 200);
         }
 
         // ── Supabase Integration & Initial Data Sync ───────────────────
@@ -2601,17 +2610,19 @@
             }
 
             // Start Beacon
-            if (data.origin_coords) {
+            if (data.origin_coords && data.origin_coords.lat != null && data.origin_coords.lng != null) {
+                const origLabel = data.origin || (document.getElementById('input-origin') ? document.getElementById('input-origin').value : 'Origin');
                 L.marker([data.origin_coords.lat, data.origin_coords.lng], {
                     icon: L.divIcon({ html: '<div class="start-marker-beacon"><div class="start-marker-core"></div></div>', className: '', iconSize: [22,22], iconAnchor: [11,11] })
-                }).addTo(state.layers.cmiRoute).bindPopup(`<b>Start Point</b><br>${data.origin}`);
+                }).addTo(state.layers.cmiRoute).bindPopup(`<b>Start Point</b><br>${origLabel}`);
             }
 
             // Destination Pin
-            if (data.destination_coords) {
+            if (data.destination_coords && data.destination_coords.lat != null && data.destination_coords.lng != null) {
+                const destLabel = data.destination || (document.getElementById('input-destination') ? document.getElementById('input-destination').value : 'Destination');
                 L.marker([data.destination_coords.lat, data.destination_coords.lng], {
                     icon: L.divIcon({ html: '<div class="dest-marker-pin"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></div>', className: '', iconSize: [28,28], iconAnchor: [14,28] })
-                }).addTo(state.layers.cmiRoute).bindPopup(`<b>Destination</b><br>${data.destination}`);
+                }).addTo(state.layers.cmiRoute).bindPopup(`<b>Destination</b><br>${destLabel}`);
             }
 
             // Render Hazard Badges
@@ -3140,11 +3151,88 @@
         // ══════════════════════════════════════════════════════════════
         // AUTHENTICATION & CREDITS (PBKDF2 + SUPABASE SYNC)
         // ══════════════════════════════════════════════════════════════
-        function openAuthModal() {
-            document.getElementById('modal-auth').classList.add('active');
+        function openAuthModal(role = 'citizen') {
+            const modal = document.getElementById('auth-modal') || document.getElementById('modal-auth');
+            if (modal) {
+                modal.classList.add('active');
+                modal.style.display = 'flex';
+            }
+            selectAuthRole(role);
         }
+
         function closeAuthModal() {
-            document.getElementById('modal-auth').classList.remove('active');
+            const modal = document.getElementById('auth-modal') || document.getElementById('modal-auth');
+            if (modal) {
+                modal.classList.remove('active');
+                modal.style.display = 'none';
+            }
+        }
+
+        function handleAuthModalClick(e) {
+            if (e.target && (e.target.id === 'auth-modal' || e.target.id === 'modal-auth')) {
+                closeAuthModal();
+            }
+        }
+
+        function selectAuthRole(role) {
+            const tabCitizen = document.getElementById('tab-role-citizen');
+            const tabAdmin = document.getElementById('tab-role-admin');
+            const formCitizen = document.getElementById('form-role-citizen');
+            const formAdmin = document.getElementById('form-role-admin');
+            const title = document.getElementById('auth-modal-title');
+
+            if (role === 'admin') {
+                if (tabCitizen) tabCitizen.classList.remove('active');
+                if (tabAdmin) tabAdmin.classList.add('active');
+                if (formCitizen) formCitizen.style.display = 'none';
+                if (formAdmin) formAdmin.style.display = 'block';
+                if (title) title.textContent = 'Municipal Official Access';
+            } else {
+                if (tabCitizen) tabCitizen.classList.add('active');
+                if (tabAdmin) tabAdmin.classList.remove('active');
+                if (formCitizen) formCitizen.style.display = 'block';
+                if (formAdmin) formAdmin.style.display = 'none';
+                if (title) title.textContent = 'Sign In to CMI';
+            }
+        }
+
+        function submitCitizenLogin() {
+            const name = (document.getElementById('citizen-input-name') ? document.getElementById('citizen-input-name').value : 'Aakash Karthikeyan').trim() || 'Aakash Karthikeyan';
+            const phone = (document.getElementById('citizen-input-phone') ? document.getElementById('citizen-input-phone').value : '+91 98401 23456').trim() || '+91 98401 23456';
+            state.user = {
+                id: 'cit-' + Math.random().toString(36).substr(2, 7),
+                name: name,
+                phone: phone,
+                role: 'citizen',
+                credits: 980
+            };
+            onUserLoggedIn();
+            closeAuthModal();
+            showToast(`Welcome back, ${state.user.name}! (980 Civic Credits)`, 'success');
+        }
+
+        function submitAdminLogin() {
+            const officerId = (document.getElementById('admin-input-id') ? document.getElementById('admin-input-id').value : 'GCC-TRAFFIC-DIV-04').trim() || 'GCC-TRAFFIC-DIV-04';
+            const dept = (document.getElementById('admin-input-dept') ? document.getElementById('admin-input-dept').value : 'Greater Chennai Corporation (GCC)').trim();
+            state.user = {
+                id: 'admin-' + Math.random().toString(36).substr(2, 7),
+                name: `Officer (${officerId})`,
+                department: dept,
+                role: 'admin',
+                credits: 1500
+            };
+            onUserLoggedIn();
+            closeAuthModal();
+            showToast('Municipal Official authorized. Dispatch center unlocked.', 'success');
+            switchView('admin-center');
+        }
+
+        function quickLoginDemo(role) {
+            if (role === 'admin') {
+                submitAdminLogin();
+            } else {
+                submitCitizenLogin();
+            }
         }
 
         function toggleAuthMode(e) {
@@ -3268,6 +3356,21 @@
             loadWeather();
             await initDatabase();
         });
+        // Expose critical functions globally on window
+        window.switchView = switchView;
+        window.openAuthModal = openAuthModal;
+        window.closeAuthModal = closeAuthModal;
+        window.selectAuthRole = selectAuthRole;
+        window.handleAuthModalClick = handleAuthModalClick;
+        window.handleCitizenLogin = handleCitizenLogin;
+        window.handleAdminLogin = handleAdminLogin;
+        window.logoutUser = logoutUser;
+        window.confirmIncident = confirmIncident;
+        window.flagIncident = flagIncident;
+        window.calculateAndRenderRoute = calculateAndRenderRoute;
+        window.quickLoginDemo = quickLoginDemo;
+        window.submitAdminLogin = submitAdminLogin;
+        window.submitCitizenLogin = submitCitizenLogin;
     </script>
 
     <!-- ══════════════════════════════════════════════════════════

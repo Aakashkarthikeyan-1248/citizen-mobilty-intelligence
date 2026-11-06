@@ -68,6 +68,8 @@ class RouteAnalysisResponse(BaseModel):
     origin_coords: dict = Field(default_factory=dict, description="Resolved lat/lng for origin")
     destination_coords: dict = Field(default_factory=dict, description="Resolved lat/lng for destination")
     travel_mode: str = Field(default="driving", description="Selected travel mode")
+    origin: Optional[str] = Field(default=None, description="Origin address or place name")
+    destination: Optional[str] = Field(default=None, description="Destination address or place name")
 
 
 class PlaceSuggestion(BaseModel):
@@ -142,6 +144,8 @@ def create_router(
             destination_coords=corridor_summary.destination_coords,
             route_geometry=corridor_summary.route_geometry,
             travel_mode=corridor_summary.travel_mode,
+            origin=req.origin,
+            destination=req.destination,
             alerts=[
                 AlertMarker(
                     headline=a.headline,
