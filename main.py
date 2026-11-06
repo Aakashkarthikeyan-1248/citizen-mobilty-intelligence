@@ -122,6 +122,12 @@ def create_app() -> FastAPI:
         )
         logger.info("Static files mounted from: %s", static_dir)
 
+    # Mount assets (logos, background art)
+    assets_dir = static_dir / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+        logger.info("Assets mounted from: %s", assets_dir)
+
     # Mount frontend files (CityLens portal scripts, assets)
     frontend_dir = DIRS["root"] / "frontend"
     if frontend_dir.exists():

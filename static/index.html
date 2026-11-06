@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CMI CityLens — Chennai Mobility & Hazard Intelligence</title>
+    <title>CMI Singara Chennai — Citizen Mobility & AI Corridor Intelligence</title>
     <meta name="description" content="AI-powered corridor routing, citizen hazard reporting, and real-time municipal intelligence for Chennai.">
 
     <!-- Fonts -->
@@ -1023,6 +1023,661 @@
             #view-community-map { grid-template-columns: 1fr; grid-template-rows: 55vh 45vh; }
             .form-row { grid-template-columns: 1fr; }
         }
+    
+        /* ── Modern Singara Chennai Homepage & Vintage Central Poster ── */
+        #view-home {
+            position: relative;
+            height: calc(100vh - var(--header-h));
+            overflow-y: auto;
+            background: #090d16;
+            color: #f1f5f9;
+        }
+
+        .home-backdrop-layer {
+            position: fixed;
+            top: var(--header-h);
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                radial-gradient(circle at 80% 30%, rgba(26, 115, 232, 0.22) 0%, transparent 55%),
+                radial-gradient(circle at 15% 75%, rgba(185, 28, 28, 0.25) 0%, transparent 60%),
+                linear-gradient(180deg, rgba(9, 13, 22, 0.90) 0%, rgba(9, 13, 22, 0.97) 100%),
+                url('/assets/chennai_central.png');
+            background-size: cover;
+            background-position: center right;
+            background-repeat: no-repeat;
+            opacity: 0.96;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .home-content-container {
+            position: relative;
+            z-index: 2;
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 36px 24px 80px 24px;
+        }
+
+        .home-hero-split {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 48px;
+            align-items: center;
+            min-height: calc(84vh - var(--header-h));
+        }
+
+        @media (max-width: 992px) {
+            .home-hero-split {
+                grid-template-columns: 1fr;
+                gap: 36px;
+                min-height: auto;
+            }
+        }
+
+        .hero-badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 9999px;
+            background: rgba(30, 41, 59, 0.85);
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #93c5fd;
+            backdrop-filter: blur(8px);
+            margin-bottom: 20px;
+        }
+
+        .hero-badge-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+        }
+
+        .hero-main-title {
+            font-size: clamp(2.4rem, 4.2vw, 3.8rem);
+            font-weight: 800;
+            line-height: 1.12;
+            letter-spacing: -0.025em;
+            margin-bottom: 20px;
+            color: #ffffff;
+        }
+
+        .hero-gradient-text {
+            background: linear-gradient(135deg, #60a5fa 0%, #38bdf8 40%, #34d399 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-subtitle-desc {
+            font-size: 1.1rem;
+            line-height: 1.65;
+            color: #cbd5e1;
+            margin-bottom: 30px;
+            max-width: 620px;
+        }
+
+        .hero-cta-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-bottom: 32px;
+        }
+
+        .btn-hero-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #1a73e8 0%, #2563eb 100%);
+            color: #ffffff;
+            font-size: 0.96rem;
+            font-weight: 600;
+            padding: 13px 24px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            text-decoration: none;
+        }
+        .btn-hero-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(37, 99, 235, 0.5);
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        }
+
+        .btn-hero-citizen {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(30, 41, 59, 0.85);
+            color: #f8fafc;
+            font-size: 0.96rem;
+            font-weight: 600;
+            padding: 13px 22px;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: all 0.2s;
+        }
+        .btn-hero-citizen:hover {
+            background: rgba(51, 65, 85, 0.95);
+            border-color: #60a5fa;
+            transform: translateY(-2px);
+        }
+
+        .btn-hero-admin {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(126, 34, 206, 0.25);
+            color: #d8b4fe;
+            font-size: 0.92rem;
+            font-weight: 600;
+            padding: 13px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(192, 132, 252, 0.35);
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: all 0.2s;
+        }
+        .btn-hero-admin:hover {
+            background: rgba(126, 34, 206, 0.45);
+            border-color: #c084fc;
+            transform: translateY(-2px);
+        }
+
+        /* Quick corridor chips on hero */
+        .hero-corridors-bar {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 14px;
+            padding: 14px 18px;
+            backdrop-filter: blur(12px);
+            max-width: 640px;
+        }
+        .corridor-bar-label {
+            font-size: 0.76rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .corridors-chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .corridor-chip {
+            background: rgba(30, 41, 59, 0.85);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            color: #e2e8f0;
+            font-size: 0.8rem;
+            padding: 5px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .corridor-chip:hover {
+            background: #1e3a8a;
+            border-color: #60a5fa;
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        /* Right column: Artwork frame */
+        .poster-frame-card {
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(226, 232, 240, 0.2);
+            border-radius: 20px;
+            padding: 14px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 35px rgba(185, 28, 28, 0.25);
+            position: relative;
+            max-width: 390px;
+            margin: 0 auto;
+        }
+        .poster-image-wrap {
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+        .poster-image-wrap img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 12px;
+            transition: transform 0.4s ease;
+        }
+        .poster-image-wrap:hover img {
+            transform: scale(1.02);
+        }
+        .poster-caption-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 6px 4px 6px;
+        }
+        .poster-caption-title {
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+        .poster-caption-sub {
+            font-size: 0.76rem;
+            color: #94a3b8;
+        }
+        .poster-badge-heritage {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: rgba(220, 38, 38, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+            text-transform: uppercase;
+        }
+
+        /* Platform Pillars Section */
+        .home-section-title-wrap {
+            text-align: center;
+            margin: 70px 0 36px 0;
+        }
+        .home-section-pill {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #38bdf8;
+            background: rgba(56, 189, 248, 0.12);
+            padding: 4px 14px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+        .home-section-heading {
+            font-size: 2.1rem;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.02em;
+        }
+        .home-section-lead {
+            font-size: 1rem;
+            color: #94a3b8;
+            margin-top: 8px;
+            max-width: 640px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .home-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+            gap: 22px;
+            margin-bottom: 46px;
+        }
+
+        .home-feature-card {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 16px;
+            padding: 24px 20px;
+            backdrop-filter: blur(12px);
+            transition: all 0.25s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .home-feature-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(96, 165, 250, 0.5);
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
+        }
+
+        .card-icon-wrap {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            margin-bottom: 18px;
+        }
+        .card-icon-blue { background: rgba(37, 99, 235, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .card-icon-red { background: rgba(220, 38, 38, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .card-icon-green { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .card-icon-purple { background: rgba(126, 34, 206, 0.2); color: #c084fc; border: 1px solid rgba(192, 132, 252, 0.3); }
+
+        .card-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 10px;
+        }
+        .card-desc {
+            font-size: 0.88rem;
+            line-height: 1.55;
+            color: #94a3b8;
+            margin-bottom: 20px;
+            flex-grow: 1;
+        }
+        .card-action-link {
+            font-size: 0.84rem;
+            font-weight: 600;
+            color: #38bdf8;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: gap 0.2s;
+        }
+        .card-action-link:hover {
+            gap: 10px;
+            color: #60a5fa;
+        }
+
+        /* Stats Strip */
+        .home-stats-strip {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 18px;
+            padding: 24px 20px;
+            backdrop-filter: blur(14px);
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        @media (max-width: 768px) {
+            .home-stats-strip {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+            }
+        }
+        .stat-item-number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 4px;
+            letter-spacing: -0.02em;
+        }
+        .stat-item-label {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        /* ── Unified Login / Auth Modal ── */
+        .auth-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(10px);
+            z-index: 5000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .auth-modal-window {
+            background: #ffffff;
+            border-radius: 18px;
+            width: 100%;
+            max-width: 460px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+            overflow: hidden;
+            animation: modalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes modalSlideUp {
+            from { opacity: 0; transform: translateY(24px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .auth-modal-header {
+            padding: 22px 24px 16px 24px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .auth-modal-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .auth-modal-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #64748b;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+        .auth-modal-close:hover {
+            color: #0f172a;
+            background: #f1f5f9;
+        }
+
+        .auth-role-tabs {
+            display: flex;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 6px 12px;
+            gap: 6px;
+        }
+        .auth-role-tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #64748b;
+            border: none;
+            background: transparent;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .auth-role-tab.active {
+            background: #ffffff;
+            color: #1a73e8;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+        }
+        .auth-role-tab.admin-role.active {
+            color: #7e22ce;
+        }
+
+        .auth-modal-body {
+            padding: 24px;
+        }
+        .auth-form-group {
+            margin-bottom: 16px;
+        }
+        .auth-form-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 6px;
+        }
+        .auth-form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid #cbd5e1;
+            font-size: 0.92rem;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .auth-form-group input:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
+        }
+
+        .btn-auth-submit {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            background: #1a73e8;
+            color: #ffffff;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+            margin-top: 8px;
+        }
+        .btn-auth-submit:hover {
+            background: #1557b0;
+        }
+        .btn-auth-admin {
+            background: #7e22ce !important;
+        }
+        .btn-auth-admin:hover {
+            background: #6b21a8 !important;
+        }
+
+        .auth-demo-divider {
+            text-align: center;
+            position: relative;
+            margin: 20px 0;
+            font-size: 0.76rem;
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .auth-demo-divider::before, .auth-demo-divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 38%;
+            height: 1px;
+            background: #e2e8f0;
+        }
+        .auth-demo-divider::before { left: 0; }
+        .auth-demo-divider::after { right: 0; }
+
+        .btn-quick-demo {
+            width: 100%;
+            padding: 11px 14px;
+            border-radius: 10px;
+            border: 1px dashed #cbd5e1;
+            background: #f8fafc;
+            color: #334155;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.15s;
+            margin-bottom: 8px;
+        }
+        .btn-quick-demo:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+
+        /* Floating Hazards Panel (Image 1 replica) */
+        .corridor-drawer {
+            position: absolute;
+            bottom: 24px;
+            left: 20px;
+            width: 420px;
+            max-width: calc(100vw - 40px);
+            background: #ffffff;
+            border-radius: 14px;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.22);
+            z-index: 1000;
+            border: 1px solid #dadce0;
+            overflow: hidden;
+            display: none;
+        }
+        .drawer-header {
+            padding: 12px 16px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dadce0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #3c4043;
+        }
+        #drawer-alerts-list {
+            max-height: 280px;
+            overflow-y: auto;
+            padding: 10px 14px;
+        }
+        .alert-card {
+            background: #ffffff;
+            border: 1px solid #e8eaed;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .alert-card:hover {
+            border-color: #1a73e8;
+            background: #f8fafd;
+            transform: translateX(2px);
+        }
+        .alert-badge {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 2px 7px;
+            border-radius: 6px;
+            display: inline-block;
+            margin-bottom: 4px;
+        }
+        .badge-critical, .badge-high, .badge-HIGH {
+            background: #fce8e6;
+            color: #c5221f;
+        }
+        .badge-medium, .badge-MEDIUM {
+            background: #fef7e0;
+            color: #b06000;
+        }
+        .badge-low, .badge-LOW {
+            background: #e8f0fe;
+            color: #1967d2;
+        }
+        .alert-card-title {
+            font-size: 0.84rem;
+            font-weight: 700;
+            color: #202124;
+            margin-bottom: 3px;
+        }
+        .alert-card-desc {
+            font-size: 0.78rem;
+            color: #5f6368;
+            line-height: 1.4;
+        }
+
     </style>
 </head>
 <body>
@@ -1178,7 +1833,7 @@
             <!-- Slide-Up Corridor Hazards Drawer -->
             <div class="corridor-drawer" id="corridor-drawer">
                 <div class="drawer-header">
-                    <span>Chennai Corridor Hazards (<span id="drawer-count">0</span>)</span>
+                    <span>PATH-SPECIFIC HAZARDS (<span id="drawer-count">0</span>)</span>
                     <button id="close-drawer" style="background:none; border:none; cursor:pointer; font-size:16px;">✕</button>
                 </div>
                 <div id="drawer-alerts-list"></div>
@@ -1436,6 +2091,7 @@
         }
 
         // ── View Switching ────────────────────────────────────────────
+        function switchToAppView(viewName) { switchView(viewName); }
         function switchView(viewName) {
             if (viewName === 'admin-center' && (!state.user || state.user.role !== 'admin')) {
                 showToast('Municipal Admin access required.', 'warn');
@@ -1704,8 +2360,13 @@
             state.layers.cmiRoute.clearLayers();
             state.layers.cmiAlerts.clearLayers();
 
-            // Render Route Polyline
-            const coords = (data.route_geometry || []).map(c => [c.lat, c.lng]);
+            // Render Route Polyline - Robust support for both [lat, lng] and {lat, lng}
+            const coords = (data.route_geometry || []).map(c => {
+                if (Array.isArray(c)) return [c[0], c[1]];
+                if (c && typeof c === 'object') return [c.lat !== undefined ? c.lat : c[0], c.lng !== undefined ? c.lng : c[1]];
+                return null;
+            }).filter(c => c && !isNaN(c[0]) && !isNaN(c[1]));
+
             if (coords.length > 0) {
                 let color = '#1a73e8';
                 let dashArray = null;
@@ -1756,8 +2417,11 @@
             document.getElementById('route-panel').style.display = 'block';
             document.getElementById('eta-time').textContent = `${data.duration_min} min`;
             document.getElementById('eta-distance').textContent = `(${data.distance_km} km)`;
-            document.getElementById('ai-summary-text').textContent = data.summary_text || 'All corridor clear.';
-            document.getElementById('ai-provider-badge').textContent = `Provider: ${data.provider_used || 'NVIDIA'}`;
+            
+            const summaryText = data.summary || data.summary_text || 'All corridor clear. No critical hazards reported.';
+            const providerName = data.provider || data.provider_used || 'NVIDIA';
+            document.getElementById('ai-summary-text').textContent = summaryText;
+            document.getElementById('ai-provider-badge').textContent = `PROVIDER: ${providerName.toUpperCase()}`;
 
             // Update Drawer
             const drawerList = document.getElementById('drawer-alerts-list');
@@ -2382,5 +3046,65 @@
             await initDatabase();
         });
     </script>
+
+    <!-- ══════════════════════════════════════════════════════════
+         AUTH / LOGIN MODAL (Citizen vs Municipal Admin)
+         ══════════════════════════════════════════════════════════ -->
+    <div class="auth-modal-overlay" id="auth-modal" onclick="handleAuthModalClick(event)">
+        <div class="auth-modal-window" onclick="event.stopPropagation()">
+            <div class="auth-modal-header">
+                <div class="auth-modal-title" id="auth-modal-title">Sign In to CMI</div>
+                <button class="auth-modal-close" onclick="closeAuthModal()">✕</button>
+            </div>
+            
+            <div class="auth-role-tabs">
+                <button class="auth-role-tab active" id="tab-role-citizen" onclick="selectAuthRole('citizen')">
+                    👤 Citizen / Commuter
+                </button>
+                <button class="auth-role-tab admin-role" id="tab-role-admin" onclick="selectAuthRole('admin')">
+                    🏛️ Municipal Official (GCC)
+                </button>
+            </div>
+            
+            <div class="auth-modal-body">
+                <!-- Citizen Form -->
+                <div id="form-role-citizen">
+                    <div class="auth-form-group">
+                        <label>Citizen Name / Email</label>
+                        <input type="text" id="citizen-input-name" placeholder="Aakash Karthikeyan" value="Aakash Karthikeyan">
+                    </div>
+                    <div class="auth-form-group">
+                        <label>Mobile Number (for OTP / points)</label>
+                        <input type="text" id="citizen-input-phone" placeholder="+91 98765 43210" value="+91 98401 23456">
+                    </div>
+                    <button class="btn-auth-submit" onclick="submitCitizenLogin()">Sign In as Citizen</button>
+                    
+                    <div class="auth-demo-divider">Quick Demo Login</div>
+                    <button class="btn-quick-demo" onclick="quickLoginDemo('citizen')">
+                        <span>🚀</span> One-Click Demo: <strong>Aakash Karthikeyan (980 pts)</strong>
+                    </button>
+                </div>
+                
+                <!-- Admin Form -->
+                <div id="form-role-admin" style="display:none;">
+                    <div class="auth-form-group">
+                        <label>Municipal Officer ID / Email</label>
+                        <input type="text" id="admin-input-id" placeholder="GCC-OFFICER-402" value="GCC-TRAFFIC-DIV-04">
+                    </div>
+                    <div class="auth-form-group">
+                        <label>Department</label>
+                        <input type="text" id="admin-input-dept" placeholder="Greater Chennai Corporation / Traffic Police" value="Greater Chennai Corporation (GCC)">
+                    </div>
+                    <button class="btn-auth-submit btn-auth-admin" onclick="submitAdminLogin()">Sign In as Municipal Official</button>
+                    
+                    <div class="auth-demo-divider">Quick Demo Access</div>
+                    <button class="btn-quick-demo" onclick="quickLoginDemo('admin')">
+                        <span>🛡️</span> One-Click Demo: <strong>Chief Traffic Inspector (GCC Admin)</strong>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>

@@ -55,6 +55,8 @@ class RouteAnalysisResponse(BaseModel):
     """Structured response from the route analysis pipeline."""
     summary: str = Field(description="AI-generated corridor summary text")
     provider: str = Field(description="Which LLM provider served the summary")
+    summary_text: Optional[str] = Field(default=None, description="Alias for summary")
+    provider_used: Optional[str] = Field(default=None, description="Alias for provider")
     bounding_box: dict = Field(description="Geographic bounding box of the corridor")
     alerts: list[AlertMarker] = Field(description="Geo-tagged alert markers")
     route_geometry: list[list[float]] = Field(
@@ -131,6 +133,8 @@ def create_router(
         return RouteAnalysisResponse(
             summary=corridor_summary.summary_text,
             provider=corridor_summary.provider_used,
+            summary_text=corridor_summary.summary_text,
+            provider_used=corridor_summary.provider_used,
             bounding_box=corridor_summary.bounding_box,
             distance_km=corridor_summary.distance_km,
             duration_min=corridor_summary.duration_min,

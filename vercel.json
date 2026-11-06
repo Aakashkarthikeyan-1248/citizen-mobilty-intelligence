@@ -6,10 +6,19 @@
       "use": "@vercel/python"
     }
   ],
+  "functions": {
+    "main.py": {
+      "maxDuration": 60
+    }
+  },
   "routes": [
     {
       "src": "/static/(.*)",
       "dest": "/static/$1"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/public/assets/$1"
     },
     {
       "src": "/(.*)",

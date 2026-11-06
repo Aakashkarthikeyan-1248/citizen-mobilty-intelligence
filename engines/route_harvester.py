@@ -270,11 +270,61 @@ class RouteHarvester:
         "max_lng": 80.40,
     }
 
+    # Instant landmark registry for zero-delay Chennai geocoding
+    CHENNAI_LANDMARKS = {
+        "chromepet bus stand": GeoPoint(lat=12.9516, lng=80.1401),
+        "chromepet": GeoPoint(lat=12.9516, lng=80.1401),
+        "egmore": GeoPoint(lat=13.0784, lng=80.2608),
+        "egmore railway station": GeoPoint(lat=13.0784, lng=80.2608),
+        "velachery": GeoPoint(lat=12.9756, lng=80.2206),
+        "guindy": GeoPoint(lat=13.0067, lng=80.2025),
+        "kathipara": GeoPoint(lat=13.0067, lng=80.2025),
+        "kathipara junction": GeoPoint(lat=13.0067, lng=80.2025),
+        "chennai airport": GeoPoint(lat=12.9941, lng=80.1709),
+        "airport": GeoPoint(lat=12.9941, lng=80.1709),
+        "chennai central": GeoPoint(lat=13.0827, lng=80.2755),
+        "central": GeoPoint(lat=13.0827, lng=80.2755),
+        "tambaram": GeoPoint(lat=12.9249, lng=80.1000),
+        "tambaram sanatorium": GeoPoint(lat=12.9360, lng=80.1180),
+        "pallavaram": GeoPoint(lat=12.9675, lng=80.1491),
+        "t. nagar": GeoPoint(lat=13.0418, lng=80.2341),
+        "t nagar": GeoPoint(lat=13.0418, lng=80.2341),
+        "panagal park": GeoPoint(lat=13.0402, lng=80.2335),
+        "adyar": GeoPoint(lat=13.0012, lng=80.2565),
+        "marina beach": GeoPoint(lat=13.0500, lng=80.2824),
+        "koyambedu": GeoPoint(lat=13.0694, lng=80.1948),
+        "cmbt": GeoPoint(lat=13.0694, lng=80.1948),
+        "omr": GeoPoint(lat=12.9010, lng=80.2279),
+        "sholinganallur": GeoPoint(lat=12.9010, lng=80.2279),
+        "perungudi": GeoPoint(lat=12.9654, lng=80.2461),
+        "navalur": GeoPoint(lat=12.8458, lng=80.2268),
+        "siruseri": GeoPoint(lat=12.8335, lng=80.2185),
+        "anna nagar": GeoPoint(lat=13.0850, lng=80.2101),
+        "porur": GeoPoint(lat=13.0382, lng=80.1565),
+        "saidapet": GeoPoint(lat=13.0213, lng=80.2231),
+        "perambur": GeoPoint(lat=13.1090, lng=80.2435),
+        "avadi": GeoPoint(lat=13.1147, lng=80.1018),
+        "thiruvanmiyur": GeoPoint(lat=12.9830, lng=80.2594),
+        "vadapalani": GeoPoint(lat=13.0500, lng=80.2121),
+        "nungambakkam": GeoPoint(lat=13.0569, lng=80.2425),
+        "mylapore": GeoPoint(lat=13.0339, lng=80.2687),
+        "alwarpet": GeoPoint(lat=13.0334, lng=80.2520),
+        "besant nagar": GeoPoint(lat=12.9996, lng=80.2707),
+        "medavakkam": GeoPoint(lat=12.9171, lng=80.1924),
+        "anna salai": GeoPoint(lat=13.0450, lng=80.2450),
+    }
+
     def _geocode(self, location_str: str) -> GeoPoint:
         """
         Converts a human-readable location string into coordinates,
         strictly bounded within the Chennai metropolitan territory.
         """
+        raw = location_str.strip().lower()
+        for key, pt in self.CHENNAI_LANDMARKS.items():
+            if key == raw or key in raw or raw in key:
+                logger.info("Instant landmark geocoded: '%s' -> (%.4f, %.4f)", location_str, pt.lat, pt.lng)
+                return pt
+
         search_query = location_str.strip()
         if "chennai" not in search_query.lower() and "madras" not in search_query.lower():
             search_query += ", Chennai, Tamil Nadu"
