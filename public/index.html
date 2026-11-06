@@ -3,37 +3,232 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CMI — Citizen Mobility Intelligence (Chennai)</title>
+    <title>CMI CityLens — Chennai Mobility & Hazard Intelligence</title>
+    <meta name="description" content="AI-powered corridor routing, citizen hazard reporting, and real-time municipal intelligence for Chennai.">
 
-    <!-- Google Fonts & Leaflet CSS -->
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Supabase JS Client v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
     <style>
-        /* ── Reset & Typography ──────────────────────────────────── */
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body, html {
-            height: 100%;
-            width: 100%;
-            font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
-            color: #202124;
-            overflow: hidden;
-            background: #e5e3df;
+        /* ── Design System & Theme Variables ──────────────────────── */
+        :root {
+            --primary: #1a73e8;
+            --primary-dark: #1557b0;
+            --primary-light: #e8f0fe;
+            --admin: #7e22ce;
+            --admin-dark: #6b21a8;
+            --admin-light: #f3e8ff;
+            --bg: #f8f9fa;
+            --surface: #ffffff;
+            --surface-alt: #f1f3f4;
+            --text-main: #202124;
+            --text-sub: #5f6368;
+            --border: #dadce0;
+            --danger: #d93025;
+            --danger-bg: #fce8e6;
+            --warning: #f29900;
+            --warning-bg: #fef7e0;
+            --success: #188038;
+            --success-bg: #e6f4ea;
+            --header-h: 56px;
         }
 
-        #map {
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; width: 100%; font-family: 'Google Sans', 'Roboto', -apple-system, sans-serif; color: var(--text-main); background: var(--bg); overflow: hidden; font-size: 14px; }
+        [hidden] { display: none !important; }
+
+        /* ── Top Unified Navigation Header ─────────────────────────── */
+        header#top-nav {
+            height: var(--header-h);
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 3000;
+            position: relative;
+            box-shadow: 0 1px 3px rgba(60,64,67,0.08);
+        }
+
+        .brand-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--primary);
+            color: #fff;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 700;
+        }
+        .brand-text {
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            color: var(--text-main);
+        }
+        .brand-tag {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 2px 7px;
+            border-radius: 12px;
+            background: var(--primary-light);
+            color: var(--primary);
+            margin-left: 4px;
+        }
+
+        /* Nav tabs */
+        nav.nav-tabs {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+        .nav-tab-btn {
+            background: transparent;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-sub);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s;
+            text-decoration: none;
+        }
+        .nav-tab-btn:hover {
+            background: var(--surface-alt);
+            color: var(--text-main);
+        }
+        .nav-tab-btn.active {
+            background: var(--primary-light);
+            color: var(--primary);
+            font-weight: 700;
+        }
+        .nav-tab-btn.admin-tab.active {
+            background: var(--admin-light);
+            color: var(--admin);
+        }
+        .tag-credit {
+            background: #dcfce7;
+            color: #166534;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        /* Right actions */
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .chip-weather {
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--text-sub);
+            background: var(--surface-alt);
+            padding: 5px 12px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .chip-credits {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #14532d;
+            background: #dcfce7;
+            border: 1px solid #bbf7d0;
+            padding: 5px 12px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-auth {
+            background: var(--primary);
+            color: #ffffff;
+            border: none;
+            border-radius: 18px;
+            padding: 6px 14px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-auth:hover { background: var(--primary-dark); }
+        .user-dropdown-btn {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-main);
+            background: transparent;
+            border: 1px solid var(--border);
+            padding: 5px 12px;
+            border-radius: 18px;
+            cursor: pointer;
+        }
+
+        /* ── Views Container (Single Page App Tabs) ────────────────── */
+        main#views-container {
+            height: calc(100vh - var(--header-h));
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        .app-view {
+            width: 100%;
+            height: 100%;
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .app-view.active {
+            display: flex;
+        }
+
+        /* ════════════════════════════════════════════════════════════
+           VIEW 1: CMI AI CORRIDOR NAVIGATOR (The Complete CMI Map)
+           ════════════════════════════════════════════════════════════ */
+        #view-cmi-navigator {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        #cmi-map {
             width: 100%;
             height: 100%;
             position: absolute;
             top: 0;
             left: 0;
             z-index: 1;
+            background: #e5e3df;
         }
 
-        /* ── Top-Left Floating Directions Card (Google Maps Style) ─ */
+        /* Floating Directions Card */
         .gmap-card {
             position: absolute;
             top: 16px;
@@ -49,7 +244,6 @@
             overflow: visible;
         }
 
-        /* Travel Mode Tabs */
         .travel-modes {
             display: flex;
             align-items: center;
@@ -76,20 +270,16 @@
         }
         .mode-tab svg { width: 18px; height: 18px; fill: currentColor; }
 
-        /* Search Form */
         .search-form {
             padding: 14px 16px 12px;
             position: relative;
         }
-
         .inputs-container {
             display: flex;
             align-items: center;
             gap: 12px;
             position: relative;
         }
-
-        /* Route Dots & Line */
         .route-indicators {
             display: flex;
             flex-direction: column;
@@ -98,54 +288,38 @@
             padding: 6px 0;
         }
         .dot-origin {
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
-            background: #1e8e3e;
-            border: 2px solid #ffffff;
-            box-shadow: 0 0 0 1.5px #1e8e3e;
+            border: 3px solid #1a73e8;
+            background: #ffffff;
         }
         .dot-trail {
             width: 2px;
-            height: 24px;
-            background: repeating-linear-gradient(to bottom, #70757a 0, #70757a 3px, transparent 3px, transparent 6px);
+            height: 22px;
+            background: repeating-linear-gradient(to bottom, #bdc1c6 0, #bdc1c6 3px, transparent 3px, transparent 6px);
         }
         .dot-dest {
             width: 12px;
             height: 12px;
-            background: #d93025;
-            mask: radial-gradient(circle at center, transparent 3px, black 3.5px);
-            -webkit-mask: radial-gradient(circle at center, transparent 3px, black 3.5px);
             border-radius: 50%;
-            border: 2px solid #ffffff;
-            box-shadow: 0 0 0 1.5px #d93025;
+            background: #d93025;
+            box-shadow: 0 0 0 2px rgba(217, 48, 37, 0.2);
         }
 
-        .inputs-wrapper {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            position: relative;
-        }
-
-        .input-row {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-
+        .inputs-wrapper { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+        .input-row { position: relative; }
         .input-row input {
             width: 100%;
-            padding: 9px 34px 9px 12px;
-            font-size: 0.95rem;
-            color: #202124;
-            background: #f1f3f4;
-            border: 1px solid transparent;
+            height: 38px;
+            padding: 0 12px;
+            border: 1px solid #dadce0;
             border-radius: 8px;
+            font-size: 0.88rem;
+            color: #202124;
+            background: #f8f9fa;
             outline: none;
             transition: all 0.2s;
-            font-family: inherit;
         }
         .input-row input:focus {
             background: #ffffff;
@@ -153,7 +327,6 @@
             box-shadow: 0 1px 3px rgba(66,133,244,0.3);
         }
 
-        /* Reverse / Swap Button */
         .swap-btn {
             background: none;
             border: none;
@@ -169,16 +342,9 @@
         .swap-btn:hover { background: #f1f3f4; transform: rotate(180deg); }
         .swap-btn svg { width: 20px; height: 20px; fill: currentColor; }
 
-        /* Action Buttons */
-        .action-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-top: 10px;
-            gap: 8px;
-        }
         .btn-calc {
-            flex: 1;
+            width: 100%;
+            margin-top: 10px;
             background: #1a73e8;
             color: #ffffff;
             border: none;
@@ -199,7 +365,7 @@
             box-shadow: 0 2px 6px rgba(60,64,67,0.4);
         }
 
-        /* Autocomplete Suggestions Dropdown */
+        /* Autocomplete dropdown */
         .autocomplete-dropdown {
             position: absolute;
             top: 100%;
@@ -226,17 +392,10 @@
         }
         .autocomplete-item:last-child { border-bottom: none; }
         .autocomplete-item:hover { background: #f8f9fa; }
-        .autocomplete-name {
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: #202124;
-        }
-        .autocomplete-sub {
-            font-size: 0.75rem;
-            color: #70757a;
-        }
+        .autocomplete-name { font-size: 0.9rem; font-weight: 500; color: #202124; }
+        .autocomplete-sub { font-size: 0.75rem; color: #70757a; }
 
-        /* ── Route Navigation Summary Banner (Google Style) ─────── */
+        /* Route Summary Panel */
         .route-summary-panel {
             padding: 12px 16px;
             border-top: 1px solid #dadce0;
@@ -249,71 +408,67 @@
             display: flex;
             align-items: baseline;
             gap: 10px;
+            margin-bottom: 4px;
         }
         .eta-time {
-            font-size: 1.5rem;
+            font-size: 1.45rem;
             font-weight: 700;
             color: #188038;
         }
         .eta-dist {
-            font-size: 0.95rem;
-            font-weight: 500;
+            font-size: 0.9rem;
             color: #5f6368;
+            font-weight: 500;
         }
         .traffic-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
             font-size: 0.75rem;
             font-weight: 500;
             color: #188038;
-            background: #e6f4ea;
-            padding: 2px 8px;
-            border-radius: 12px;
-            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 10px;
         }
 
-        /* AI Intelligence Summary */
         .ai-summary-box {
-            margin-top: 10px;
-            padding: 10px 12px;
             background: #ffffff;
-            border-radius: 8px;
+            border: 1px solid #dadce0;
             border-left: 4px solid #1a73e8;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-top: 6px;
+            font-size: 0.82rem;
+            line-height: 1.45;
+            color: #3c4043;
         }
         .ai-summary-title {
-            font-size: 0.75rem;
+            font-size: 0.72rem;
             font-weight: 700;
-            color: #1a73e8;
             text-transform: uppercase;
             letter-spacing: 0.05em;
+            color: #1a73e8;
+            margin-bottom: 4px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 4px;
-        }
-        .ai-summary-text {
-            font-size: 0.85rem;
-            color: #3c4043;
-            line-height: 1.4;
         }
 
-        /* ── Top-Right Autonomous Periodic LLM Refresh Widget ────────── */
+        /* Top-Right Auto-Refresh LLM Widget */
         .auto-refresh-widget {
             position: absolute;
             top: 16px;
             right: 16px;
             background: #ffffff;
             border-radius: 24px;
-            padding: 6px 16px;
+            padding: 6px 14px;
             box-shadow: 0 2px 10px rgba(60,64,67,0.2);
             z-index: 1000;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             font-size: 0.82rem;
             color: #3c4043;
+            border: 1px solid var(--border);
         }
         .pulse-beacon {
             width: 8px;
@@ -326,7 +481,6 @@
         @keyframes beacon-pulse {
             to { box-shadow: 0 0 0 9px rgba(52, 168, 83, 0); }
         }
-
         .countdown-badge {
             font-family: monospace;
             font-size: 0.85rem;
@@ -347,7 +501,7 @@
             cursor: pointer;
         }
 
-        /* ── Floating Map Action Buttons (Locate GPS & Bounds) ──── */
+        /* Map Controls & Floating FABs */
         .map-controls-group {
             position: absolute;
             bottom: 24px;
@@ -368,108 +522,34 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
+            transition: background 0.2s;
             color: #5f6368;
-            transition: all 0.2s;
         }
-        .floating-fab:hover {
-            background: #f8f9fa;
-            color: #1a73e8;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.35);
-        }
+        .floating-fab:hover { background: #f8f9fa; color: #1a73e8; }
         .floating-fab.active { color: #1a73e8; background: #e8f0fe; }
+        .floating-fab svg { width: 22px; height: 22px; fill: currentColor; }
 
-        /* ── Live GPS User Pulsing Marker ────────────────────────── */
-        .gps-user-marker {
-            width: 18px;
-            height: 18px;
-            background: #1a73e8;
-            border: 3px solid #ffffff;
-            border-radius: 50%;
-            box-shadow: 0 0 4px rgba(0,0,0,0.3);
-            position: relative;
-        }
-        .gps-user-marker::after {
-            content: '';
-            position: absolute;
-            top: -6px;
-            left: -6px;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: rgba(26, 115, 232, 0.35);
-            animation: gps-wave 2s infinite ease-out;
-        }
-        @keyframes gps-wave {
-            0% { transform: scale(0.6); opacity: 1; }
-            100% { transform: scale(2.2); opacity: 0; }
-        }
-
-        /* ── Start & Destination Custom Marker Icons ─────────────── */
-        .custom-start-marker {
-            width: 34px;
-            height: 34px;
-            background: #1e8e3e;
-            border: 3px solid #ffffff;
-            border-radius: 50%;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.35);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #ffffff;
-            cursor: pointer;
-        }
-        .custom-start-marker svg { width: 18px; height: 18px; fill: currentColor; }
-
-        .custom-dest-marker {
-            width: 32px;
-            height: 40px;
-            cursor: pointer;
-            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.35));
-        }
-
-        /* ── Custom Dynamic Hazard Symbols ───────────────────────── */
-        .hazard-pin-symbol {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            border: 2px solid #ffffff;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #ffffff;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .hazard-pin-symbol:hover {
-            transform: scale(1.15);
-        }
-        .hazard-pin-symbol svg { width: 18px; height: 18px; fill: currentColor; }
-
-        .pin-construction { background: #e37400; }
-        .pin-hazard { background: #1a73e8; }
-        .pin-traffic { background: #d93025; }
-        .pin-closure { background: #a50e0e; }
-        .pin-signal { background: #f9ab00; color: #202124; }
-
-        /* ── Bottom-Left Chennai Locked Scope Badge ──────────────── */
+        /* Scope badge */
         .chennai-badge {
             position: absolute;
             bottom: 24px;
             left: 16px;
             background: rgba(255, 255, 255, 0.95);
-            border-radius: 16px;
+            backdrop-filter: blur(4px);
             padding: 6px 14px;
+            border-radius: 20px;
             font-size: 0.75rem;
-            color: #5f6368;
+            font-weight: 500;
+            color: #3c4043;
             box-shadow: 0 2px 6px rgba(0,0,0,0.15);
             z-index: 1000;
             display: flex;
             align-items: center;
             gap: 6px;
+            border: 1px solid #dadce0;
         }
 
-        /* ── Corridor Drawer (Bottom Slide-Up for Alerts) ────────── */
+        /* Corridor Alerts Slide Drawer */
         .corridor-drawer {
             position: absolute;
             bottom: 0;
@@ -498,6 +578,7 @@
             justify-content: space-between;
             position: sticky;
             top: 0;
+            border-bottom: 1px solid #dadce0;
         }
         .alert-card {
             padding: 10px 16px;
@@ -518,203 +599,1062 @@
         .badge-critical { background: #fce8e6; color: #c5221f; }
         .badge-high { background: #feefe3; color: #d93025; }
         .badge-medium { background: #fef7e0; color: #b06000; }
-        .badge-low { background: #e6f4ea; color: #137333; }
+        .alert-card-title { font-size: 0.85rem; font-weight: 600; color: #202124; margin-bottom: 2px; }
+        .alert-card-desc { font-size: 0.78rem; color: #5f6368; line-height: 1.35; }
+
+        /* Custom Markers (Start Beacon, Destination Pin, SVG Hazards) */
+        .start-marker-beacon {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #0f9d58;
+            border: 3px solid #ffffff;
+            box-shadow: 0 0 0 4px rgba(15, 157, 88, 0.4), 0 3px 8px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .start-marker-core {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #ffffff;
+        }
+        .dest-marker-pin {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            filter: drop-shadow(0 3px 5px rgba(0,0,0,0.35));
+        }
+        .dest-marker-pin svg { width: 28px; height: 28px; fill: #d93025; }
+
+        .hazard-pin-symbol {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+            border: 2px solid #ffffff;
+            transition: transform 0.2s;
+        }
+        .hazard-pin-symbol:hover { transform: scale(1.18); }
+        .hazard-pin-symbol svg { width: 17px; height: 17px; fill: #ffffff; }
+        .pin-construction { background: linear-gradient(135deg, #f29900, #e65100); }
+        .pin-hazard { background: linear-gradient(135deg, #0288d1, #01579b); }
+        .pin-traffic { background: linear-gradient(135deg, #d93025, #b71c1c); }
+        .pin-signal { background: linear-gradient(135deg, #e65100, #bf360c); }
+        .pin-closure { background: linear-gradient(135deg, #7b1fa2, #4a148c); }
+
+        .gps-user-marker {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #1a73e8;
+            border: 3px solid #ffffff;
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.35), 0 2px 6px rgba(0,0,0,0.25);
+        }
+
+        /* ════════════════════════════════════════════════════════════
+           VIEW 2: COMMUNITY HAZARD MAP & FEED
+           ════════════════════════════════════════════════════════════ */
+        #view-community-map {
+            width: 100%;
+            height: 100%;
+            display: none;
+            grid-template-columns: minmax(0, 1fr) 380px;
+        }
+        #view-community-map.active {
+            display: grid;
+        }
+        .comm-map-wrapper {
+            position: relative;
+            height: 100%;
+            width: 100%;
+        }
+        #community-map {
+            width: 100%;
+            height: 100%;
+            background: #e2e8f0;
+        }
+
+        .comm-controls-panel {
+            position: absolute;
+            top: 12px;
+            left: 60px;
+            z-index: 500;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: min(460px, calc(100% - 80px));
+        }
+        .comm-search-box {
+            display: flex;
+            background: rgba(255,255,255,0.97);
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .comm-search-box input {
+            flex: 1;
+            border: none;
+            padding: 8px 12px;
+            font-size: 14px;
+            outline: none;
+            background: transparent;
+        }
+        .comm-search-box button {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            background: rgba(255,255,255,0.97);
+            padding: 6px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .filter-bar label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-sub);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .filter-bar select {
+            font-size: 12px;
+            padding: 4px 6px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: #fff;
+            outline: none;
+        }
+
+        .comm-sidebar {
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+        .sidebar-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .sidebar-title { font-size: 1rem; font-weight: 700; }
+        .sidebar-count { font-size: 0.78rem; color: var(--text-sub); }
+        .feed-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            list-style: none;
+        }
+
+        .incident-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .incident-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        }
+        .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+        .card-title { font-size: 0.9rem; font-weight: 700; }
+        .chip-sev { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; }
+        .chip-critical { background: #fee2e2; color: #991b1b; }
+        .chip-high { background: #ffedd5; color: #9a3412; }
+        .chip-medium { background: #fef3c7; color: #92400e; }
+        .card-loc { font-size: 0.78rem; color: var(--text-sub); margin: 4px 0 6px; }
+        .card-badges { display: flex; gap: 6px; margin: 4px 0; }
+        .badge { font-size: 0.68rem; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
+        .badge-verified { background: #dcfce7; color: #166534; }
+        .badge-pending { background: #e0e7ff; color: #3730a3; }
+        .badge-resolved { background: #e2e8f0; color: #334155; }
+        .card-foot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.78rem;
+            color: var(--text-sub);
+            margin-top: 8px;
+            border-top: 1px solid var(--surface-alt);
+            padding-top: 6px;
+        }
+        .btn-confirm {
+            background: #eff6ff;
+            color: var(--primary);
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 4px 8px;
+            cursor: pointer;
+        }
+        .btn-confirm:hover { background: #dbeafe; }
+
+        /* Detail View */
+        #detail-view {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        .btn-back-feed {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-weight: 600;
+            cursor: pointer;
+            padding: 0;
+            margin-bottom: 12px;
+            font-size: 0.85rem;
+            text-align: left;
+        }
+        .detail-photo {
+            width: 100%;
+            max-height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 1px solid var(--border);
+        }
+
+        /* ════════════════════════════════════════════════════════════
+           VIEW 3: REPORT HAZARD (Interactive Pin Picker + Form)
+           ════════════════════════════════════════════════════════════ */
+        #view-report-hazard {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            padding: 24px 16px;
+            display: none;
+            justify-content: center;
+        }
+        #view-report-hazard.active {
+            display: flex;
+        }
+        .report-form-container {
+            width: 100%;
+            max-width: 780px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+        }
+        .report-header { margin-bottom: 18px; }
+        .report-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 4px; }
+        .report-subtitle { font-size: 0.85rem; color: var(--text-sub); }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 0.82rem; font-weight: 700; margin-bottom: 6px; }
+        .form-control {
+            width: 100%;
+            padding: 9px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.88rem;
+            outline: none;
+            background: #fff;
+            color: var(--text-main);
+        }
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(26,115,232,0.2);
+        }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .picker-map {
+            width: 100%;
+            height: 280px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-top: 8px;
+            background: #e2e8f0;
+        }
+        .pin-status-text {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-sub);
+            margin-top: 8px;
+        }
+        .pin-status-text.ok { color: var(--success); }
+        .pin-status-text.error { color: var(--danger); }
+        .dup-box {
+            background: #fffbeb;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 14px;
+        }
+
+        /* ════════════════════════════════════════════════════════════
+           VIEW 4: MUNICIPAL ADMIN CONTROL CENTER
+           ════════════════════════════════════════════════════════════ */
+        #view-admin-center {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            padding: 24px 16px;
+            display: none;
+            justify-content: center;
+        }
+        #view-admin-center.active {
+            display: flex;
+        }
+        .admin-container {
+            width: 100%;
+            max-width: 980px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .admin-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .admin-panel h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; }
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .admin-table th, .admin-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .admin-table th { background: var(--surface-alt); font-weight: 700; color: var(--text-sub); }
+
+        /* ── Modal Dialogs (Auth, Login, Signup) ──────────────────── */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 5000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-card {
+            background: var(--surface);
+            border-radius: 14px;
+            max-width: 440px;
+            width: 100%;
+            padding: 28px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+            position: relative;
+        }
+        .modal-close {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            background: none;
+            border: none;
+            font-size: 1.3rem;
+            cursor: pointer;
+            color: var(--text-sub);
+        }
+
+        /* Toast notifications */
+        .toast-region {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .toast {
+            background: #202124;
+            color: #fff;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            animation: toast-in 0.25s ease-out;
+        }
+        .toast-success { background: #14532d; }
+        .toast-warn { background: #b45309; }
+        .toast-error { background: #991b1b; }
+        @keyframes toast-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            header#top-nav { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+            main#views-container { height: calc(100vh - 100px); }
+            .gmap-card { width: calc(100% - 32px); }
+            #view-community-map { grid-template-columns: 1fr; grid-template-rows: 55vh 45vh; }
+            .form-row { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
 
-    <!-- Primary Map Canvas -->
-    <div id="map"></div>
-
-    <!-- Top-Left Floating Directions Card -->
-    <div class="gmap-card">
-        <!-- Travel Mode Selector (Drive / Transit / Walk) -->
-        <div class="travel-modes">
-            <div class="mode-tab active" data-mode="driving" id="mode-driving">
-                <svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>
-                <span>Drive</span>
-            </div>
-            <div class="mode-tab" data-mode="transit" id="mode-transit">
-                <svg viewBox="0 0 24 24"><path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V6c0-3.5-3.58-4-8-4zm0 2c3.71 0 5.13.46 5.67 1H6.33c.54-.54 1.96-1 5.67-1zm6 11.5c0 .83-.67 1.5-1.5 1.5h-9c-.83 0-1.5-.67-1.5-1.5V12h12v3.5zm0-5.5H6V7h12v2z"/></svg>
-                <span>Transit</span>
-            </div>
-            <div class="mode-tab" data-mode="walking" id="mode-walking">
-                <svg viewBox="0 0 24 24"><path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7z"/></svg>
-                <span>Walk</span>
-            </div>
+    <!-- ══════════════════════════════════════════════════════════════
+         TOP UNIFIED HEADER
+         ══════════════════════════════════════════════════════════════ -->
+    <header id="top-nav">
+        <div class="brand-section" onclick="switchView('cmi-navigator')">
+            <div class="brand-icon">📍</div>
+            <div class="brand-text">CMI CityLens <span class="brand-tag">Chennai</span></div>
         </div>
 
-        <!-- Search / Directions Inputs with Autocomplete -->
-        <div class="search-form">
-            <div class="inputs-container">
-                <div class="route-indicators">
-                    <div class="dot-origin"></div>
-                    <div class="dot-trail"></div>
-                    <div class="dot-dest"></div>
+        <nav class="nav-tabs">
+            <button class="nav-tab-btn active" data-view="cmi-navigator" onclick="switchView('cmi-navigator')">
+                <span>🧭</span> <span>AI Corridor Navigator</span>
+            </button>
+            <button class="nav-tab-btn" data-view="community-map" onclick="switchView('community-map')">
+                <span>📍</span> <span>Community Incidents</span>
+            </button>
+            <button class="nav-tab-btn" data-view="report-hazard" onclick="switchView('report-hazard')">
+                <span>⚠️</span> <span>Report Hazard</span>
+                <span class="tag-credit">+10 pts</span>
+            </button>
+            <button class="nav-tab-btn admin-tab" id="nav-btn-admin" data-view="admin-center" onclick="switchView('admin-center')" style="display:none;">
+                <span>🏛️</span> <span>Municipal Admin</span>
+            </button>
+        </nav>
+
+        <div class="header-actions">
+            <div class="chip-weather" id="header-weather">🌦 Chennai: 28°C</div>
+            <div class="chip-credits" id="header-credits" style="display:none;">
+                <span>🏆</span> <span id="credit-count">0</span> Credits
+            </div>
+            <div id="auth-slot">
+                <button class="btn-auth" onclick="openAuthModal()">Log in / Sign up</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         MAIN VIEWS CONTAINER
+         ══════════════════════════════════════════════════════════════ -->
+    <main id="views-container">
+
+        <!-- ──────────────────────────────────────────────────────────
+             VIEW 1: CMI AI CORRIDOR NAVIGATOR (The Complete CMI Map)
+             ────────────────────────────────────────────────────────── -->
+        <section id="view-cmi-navigator" class="app-view active">
+            <!-- Fullscreen Leaflet Canvas with Google Roads -->
+            <div id="cmi-map"></div>
+
+            <!-- Top-Left Floating Directions Card (Google Maps Style) -->
+            <div class="gmap-card">
+                <!-- Travel Modes Switcher -->
+                <div class="travel-modes">
+                    <div class="mode-tab active" data-mode="driving" id="mode-driving">
+                        <svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>
+                        <span>Drive</span>
+                    </div>
+                    <div class="mode-tab" data-mode="transit" id="mode-transit">
+                        <svg viewBox="0 0 24 24"><path d="M12 2c-4.42 0-8 .5-8 4v10c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4zm5.5 12c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm-11 0c-.83 0-1.5-.67-1.5-1.5S5.67 11 6.5 11 8 11.67 8 12.5 7.33 14 6.5 14zm11.5-6H6V6h12v2z"/></svg>
+                        <span>Transit</span>
+                    </div>
+                    <div class="mode-tab" data-mode="walking" id="mode-walking">
+                        <svg viewBox="0 0 24 24"><path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7z"/></svg>
+                        <span>Walk</span>
+                    </div>
                 </div>
 
-                <div class="inputs-wrapper">
-                    <!-- Origin Input -->
-                    <div class="input-row">
-                        <input id="input-origin" type="text" placeholder="Starting point (e.g. Chromepet Bus Stand)" autocomplete="off" value="Chromepet Bus Stand">
-                        <div id="dropdown-origin" class="autocomplete-dropdown"></div>
+                <!-- Search Inputs with Autocomplete -->
+                <div class="search-form">
+                    <div class="inputs-container">
+                        <div class="route-indicators">
+                            <div class="dot-origin"></div>
+                            <div class="dot-trail"></div>
+                            <div class="dot-dest"></div>
+                        </div>
+
+                        <div class="inputs-wrapper">
+                            <div class="input-row">
+                                <input id="input-origin" type="text" placeholder="Starting point (e.g. Chromepet Bus Stand)" autocomplete="off" value="Chromepet Bus Stand">
+                                <div id="dropdown-origin" class="autocomplete-dropdown"></div>
+                            </div>
+                            <div class="input-row">
+                                <input id="input-destination" type="text" placeholder="Destination (e.g. Egmore)" autocomplete="off" value="Egmore">
+                                <div id="dropdown-destination" class="autocomplete-dropdown"></div>
+                            </div>
+                        </div>
+
+                        <button class="swap-btn" id="swap-route-btn" title="Reverse route">
+                            <svg viewBox="0 0 24 24"><path d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z"/></svg>
+                        </button>
                     </div>
 
-                    <!-- Destination Input -->
-                    <div class="input-row">
-                        <input id="input-destination" type="text" placeholder="Destination (e.g. Egmore)" autocomplete="off" value="Egmore">
-                        <div id="dropdown-destination" class="autocomplete-dropdown"></div>
-                    </div>
+                    <button class="btn-calc" id="btn-analyze">
+                        <svg style="width:18px;height:18px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                        <span>Route & Analyze Corridor</span>
+                    </button>
                 </div>
 
-                <!-- Swap Button -->
-                <button class="swap-btn" id="swap-route-btn" title="Reverse route">
-                    <svg viewBox="0 0 24 24"><path d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z"/></svg>
+                <!-- Route Summary Panel -->
+                <div class="route-summary-panel" id="route-panel">
+                    <div class="route-eta-row">
+                        <div class="eta-time" id="eta-time">-- min</div>
+                        <div class="eta-dist" id="eta-distance">(-- km)</div>
+                    </div>
+                    <div class="traffic-pill" id="traffic-pill">
+                        <span>●</span> Fastest route now • Chennai Corridor Protected
+                    </div>
+                    <div class="ai-summary-box">
+                        <div class="ai-summary-title">
+                            <span>AI Corridor Intelligence</span>
+                            <span id="ai-provider-badge" style="font-size:0.65rem; color:#5f6368; font-weight:400;">NVIDIA NIM / Groq</span>
+                        </div>
+                        <div class="ai-summary-text" id="ai-summary-text">
+                            Calculating localized road trajectory and inspecting hazards...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top-Right Autonomous Periodic LLM Refresh Widget -->
+            <div class="auto-refresh-widget">
+                <div class="pulse-beacon"></div>
+                <div>
+                    <strong>Auto-LLM:</strong>
+                    <span class="countdown-badge" id="countdown-timer">02:00</span>
+                </div>
+                <select class="interval-select" id="refresh-interval-select" title="Change Auto-Refresh Interval">
+                    <option value="60">Every 1 min</option>
+                    <option value="120" selected>Every 2 min</option>
+                    <option value="300">Every 5 min</option>
+                </select>
+            </div>
+
+            <!-- Bottom-Left Chennai Scope Lock -->
+            <div class="chennai-badge">
+                <svg style="width:14px;height:14px;fill:#1a73e8;" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                <span>Restricted to <strong>Chennai Metropolitan Territory</strong></span>
+            </div>
+
+            <!-- Floating Action Buttons -->
+            <div class="map-controls-group">
+                <button class="floating-fab" id="btn-user-location" title="Track Live GPS Location">
+                    <svg viewBox="0 0 24 24"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+                </button>
+                <button class="floating-fab" id="btn-fit-bounds" title="Reset to Chennai Metropolitan Scope">
+                    <svg viewBox="0 0 24 24"><path d="M15 3l2.3 2.3-2.89 2.87 1.42 1.42L18.7 6.7 21 9V3h-6zM3 9l2.3-2.3 2.87 2.89 1.42-1.42L6.7 5.3 9 3H3v6zm6 12l-2.3-2.3 2.89-2.87-1.42-1.42L5.3 17.3 3 15v6h6zm12-6l-2.3 2.3-2.87-2.89-1.42 1.42 2.89 2.87L15 21h6v-6z"/></svg>
                 </button>
             </div>
 
-            <!-- Action Button -->
-            <div class="action-row">
-                <button class="btn-calc" id="btn-analyze">
-                    <svg style="width:18px;height:18px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                    <span>Route & Analyze Corridor</span>
-                </button>
-            </div>
-        </div>
-
-        <!-- Route Summary Panel -->
-        <div class="route-summary-panel" id="route-panel">
-            <div class="route-eta-row">
-                <div class="eta-time" id="eta-time">-- min</div>
-                <div class="eta-dist" id="eta-distance">(-- km)</div>
-            </div>
-            <div class="traffic-pill" id="traffic-pill">
-                <span>●</span> Fastest route now • Chennai Corridor Protected
-            </div>
-
-            <div class="ai-summary-box">
-                <div class="ai-summary-title">
-                    <span>AI Corridor Intelligence</span>
-                    <span id="ai-provider-badge" style="font-size:0.65rem; color:#5f6368; font-weight:400;">NVIDIA / Groq</span>
+            <!-- Slide-Up Corridor Hazards Drawer -->
+            <div class="corridor-drawer" id="corridor-drawer">
+                <div class="drawer-header">
+                    <span>Chennai Corridor Hazards (<span id="drawer-count">0</span>)</span>
+                    <button id="close-drawer" style="background:none; border:none; cursor:pointer; font-size:16px;">✕</button>
                 </div>
-                <div class="ai-summary-text" id="ai-summary-text">
-                    Calculating localized road trajectory and inspecting hazards...
+                <div id="drawer-alerts-list"></div>
+            </div>
+        </section>
+
+        <!-- ──────────────────────────────────────────────────────────
+             VIEW 2: COMMUNITY HAZARD MAP & SIDEBAR FEED
+             ────────────────────────────────────────────────────────── -->
+        <section id="view-community-map" class="app-view">
+            <div class="comm-map-wrapper">
+                <div id="community-map"></div>
+
+                <div class="comm-controls-panel">
+                    <div class="comm-search-box">
+                        <input id="comm-search-input" type="text" placeholder="🔍 Search an area, e.g. T. Nagar, Guindy">
+                        <button type="button" onclick="searchCommunityMap()">Search</button>
+                    </div>
+                    <div class="filter-bar">
+                        <label>Category
+                            <select id="filter-cat" onchange="renderCommunityFeed()">
+                                <option value="all">All categories</option>
+                                <option value="Pothole">Pothole</option>
+                                <option value="Roadblock">Roadblock</option>
+                                <option value="Flooding">Waterlogging / Flooding</option>
+                                <option value="Traffic">Severe Traffic</option>
+                            </select>
+                        </label>
+                        <label>Severity
+                            <select id="filter-sev" onchange="renderCommunityFeed()">
+                                <option value="all">All severities</option>
+                                <option value="critical">Critical</option>
+                                <option value="high">High</option>
+                                <option value="medium">Medium</option>
+                            </select>
+                        </label>
+                        <label>Status
+                            <select id="filter-status" onchange="renderCommunityFeed()">
+                                <option value="active">Active (not resolved)</option>
+                                <option value="all">All statuses</option>
+                                <option value="verified">Verified</option>
+                                <option value="resolved">Resolved</option>
+                            </select>
+                        </label>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Top-Right Autonomous Periodic LLM Refresh & Citizen Portal Link -->
-    <div style="position: absolute; top: 16px; right: 16px; display: flex; align-items: center; gap: 8px; z-index: 1000;">
-        <a href="/portal" style="text-decoration: none; display: flex; align-items: center; gap: 6px; font-weight: 600; color: #1a73e8; background: #ffffff; padding: 7px 14px; border-radius: 24px; font-size: 0.82rem; box-shadow: 0 2px 10px rgba(60,64,67,0.2); transition: all 0.2s; border: 1px solid #dadce0;">
-            <span style="font-size: 0.95rem;">🏛️</span>
-            <span>Citizen Portal</span>
-        </a>
-        <div class="auto-refresh-widget" style="position: static;">
-            <div class="pulse-beacon"></div>
-            <div>
-                <strong>Auto-LLM:</strong>
-                <span class="countdown-badge" id="countdown-timer">02:00</span>
+            <aside class="comm-sidebar">
+                <div id="feed-container" style="display:flex; flex-direction:column; height:100%;">
+                    <div class="sidebar-header">
+                        <div class="sidebar-title">Live Incident Feed</div>
+                        <div class="sidebar-count" id="feed-count">Loading...</div>
+                    </div>
+                    <ul class="feed-list" id="feed-list"></ul>
+                </div>
+
+                <div id="detail-view" style="display:none;">
+                    <button class="btn-back-feed" onclick="closeIncidentDetail()">← Back to list</button>
+                    <div id="detail-content"></div>
+                </div>
+            </aside>
+        </section>
+
+        <!-- ──────────────────────────────────────────────────────────
+             VIEW 3: REPORT HAZARD FORM + LOCATION PICKER
+             ────────────────────────────────────────────────────────── -->
+        <section id="view-report-hazard" class="app-view">
+            <div class="report-form-container">
+                <div class="report-header">
+                    <h1 class="report-title">Report a City Road Hazard</h1>
+                    <p class="report-subtitle">Drop a pin at the exact location. Earn <strong>+10 Credits</strong> for each verified report.</p>
+                </div>
+
+                <form id="form-report" onsubmit="handleReportSubmit(event)">
+                    <div class="form-group">
+                        <label for="rep-title">Issue Title *</label>
+                        <input id="rep-title" type="text" class="form-control" placeholder="e.g. Deep pothole near Anna Salai signal" required maxlength="120">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="rep-cat">Category *</label>
+                            <select id="rep-cat" class="form-control" onchange="checkDuplicates()">
+                                <option value="Pothole">Pothole</option>
+                                <option value="Roadblock">Roadblock / Construction</option>
+                                <option value="Flooding">Waterlogging / Flooding</option>
+                                <option value="Traffic">Traffic Congestion</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="rep-sev">Severity *</label>
+                            <select id="rep-sev" class="form-control">
+                                <option value="critical">Critical (Impassable / Danger)</option>
+                                <option value="high">High (Major Slowdown)</option>
+                                <option value="medium" selected>Medium (Moderate Issue)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rep-desc">Description (Optional)</label>
+                        <textarea id="rep-desc" class="form-control" rows="3" placeholder="Provide extra details for municipal crews..." maxlength="500"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rep-photo">Attach Photo (Optional, under 1 MB)</label>
+                        <input id="rep-photo" type="file" accept="image/*" class="form-control" onchange="handlePhotoUpload(this)">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Exact Location (Click Map to Place Pin) *</label>
+                        <div style="display:flex; gap:8px; margin-bottom:6px;">
+                            <input id="rep-search-input" type="text" class="form-control" placeholder="Search area, e.g. Velachery">
+                            <button type="button" class="btn-auth" style="background:#5f6368;" onclick="searchPickerLocation()">Search</button>
+                            <button type="button" class="btn-auth" onclick="useCurrentLocationPicker()">My GPS</button>
+                        </div>
+                        <div id="picker-map" class="picker-map"></div>
+                        <div class="pin-status-text" id="pin-status-text">No location selected yet. Click on the map.</div>
+                    </div>
+
+                    <div id="dup-warning-box" class="dup-box" style="display:none;"></div>
+
+                    <button type="submit" class="btn-calc" style="margin-top:16px;">
+                        <span>Submit Report (+10 Credits)</span>
+                    </button>
+                </form>
             </div>
-            <select class="interval-select" id="refresh-interval-select" title="Change Auto-Refresh Interval">
-                <option value="60">Every 1 min</option>
-                <option value="120" selected>Every 2 min</option>
-                <option value="300">Every 5 min</option>
-            </select>
+        </section>
+
+        <!-- ──────────────────────────────────────────────────────────
+             VIEW 4: MUNICIPAL ADMIN CONTROL CENTER
+             ────────────────────────────────────────────────────────── -->
+        <section id="view-admin-center" class="app-view">
+            <div class="admin-container">
+                <div class="admin-panel">
+                    <h2>Pending Admin Access Requests</h2>
+                    <div id="admin-pending-requests">No pending requests.</div>
+                </div>
+
+                <div class="admin-panel">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <h2>Municipal Incident Management</h2>
+                        <select id="admin-status-filter" class="form-control" style="width:180px;" onchange="renderAdminTable()">
+                            <option value="all">All statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="verified">Verified</option>
+                            <option value="acknowledged">Acknowledged</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                        </select>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Incident Title</th>
+                                    <th>Category</th>
+                                    <th>Severity</th>
+                                    <th>Source</th>
+                                    <th>Confirmations</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         AUTH MODAL DIALOG (PBKDF2 + SUPABASE DATABASE SYNC)
+         ══════════════════════════════════════════════════════════════ -->
+    <div class="modal-overlay" id="modal-auth">
+        <div class="modal-card">
+            <button class="modal-close" onclick="closeAuthModal()">✕</button>
+            <h2 id="auth-title" style="margin-bottom:6px;">Citizen Login</h2>
+            <p id="auth-sub" style="font-size:0.85rem; color:var(--text-sub); margin-bottom:16px;">Log in to earn credits and confirm road hazards.</p>
+
+            <form id="auth-form" onsubmit="handleAuthSubmit(event)">
+                <div class="form-group" id="group-name" style="display:none;">
+                    <label>Full Name</label>
+                    <input id="auth-name" type="text" class="form-control" placeholder="Aakash K">
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input id="auth-email" type="email" class="form-control" required placeholder="citizen@chennai.org">
+                </div>
+                <div class="form-group" id="group-empid" style="display:none;">
+                    <label>Employee ID</label>
+                    <input id="auth-empid" type="text" class="form-control" placeholder="EMP-0001">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input id="auth-pass" type="password" class="form-control" required minlength="8" placeholder="••••••••">
+                </div>
+
+                <button type="submit" class="btn-calc" id="auth-submit-btn" style="margin-top:12px;">Log In</button>
+            </form>
+
+            <div style="margin-top:14px; font-size:0.82rem; text-align:center;">
+                <a href="#" id="auth-toggle-link" onclick="toggleAuthMode(event)" style="color:var(--primary); font-weight:600; text-decoration:none;">Don't have an account? Sign up</a>
+                <br>
+                <a href="#" id="admin-toggle-link" onclick="toggleAdminAuth(event)" style="color:var(--admin); font-weight:600; text-decoration:none; display:inline-block; margin-top:6px;">Municipal Admin Login</a>
+            </div>
         </div>
     </div>
 
-    <!-- Bottom-Left Chennai Locked Scope Badge -->
-    <div class="chennai-badge">
-        <svg style="width:14px;height:14px;fill:#1a73e8;" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-        <span>Restricted to <strong>Chennai Metropolitan Territory</strong></span>
-    </div>
+    <!-- Toast Notifications Region -->
+    <div class="toast-region" id="toast-region"></div>
 
-    <!-- Floating Map Controls (GPS Locate) -->
-    <div class="map-controls-group">
-        <button class="floating-fab" id="locate-me-btn" title="Track my movement (GPS)">
-            <svg style="width:22px;height:22px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
-        </button>
-    </div>
-
-    <!-- Corridor Hazards Bottom Drawer -->
-    <div class="corridor-drawer" id="corridor-drawer">
-        <div class="drawer-header">
-            <span>Path-Specific Hazards (<span id="alerts-count">0</span>)</span>
-            <span style="cursor:pointer;" onclick="document.getElementById('corridor-drawer').style.display='none'">✕</span>
-        </div>
-        <div id="drawer-alerts-list"></div>
-    </div>
-
-    <!-- Leaflet.js -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
+    <!-- ══════════════════════════════════════════════════════════════
+         JAVASCRIPT ENGINE & DATABASE SYNC
+         ══════════════════════════════════════════════════════════════ -->
     <script>
-        // ── CHENNAI STRICT GEOGRAPHIC BOUNDING BOX ───────────────
-        const CHENNAI_SW = L.latLng(12.7200, 79.9200);
-        const CHENNAI_NE = L.latLng(13.3800, 80.3800);
+        // ── Constants & Scope ─────────────────────────────────────────
+        const CHENNAI_SW = [12.72, 79.92];
+        const CHENNAI_NE = [13.38, 80.38];
         const CHENNAI_BOUNDS = L.latLngBounds(CHENNAI_SW, CHENNAI_NE);
+        const CHENNAI_CENTER = [13.0418, 80.2341];
 
-        // Map setup restricted exclusively to Chennai
-        const map = L.map('map', {
-            zoomControl: false,
-            center: [13.0600, 80.2400],
-            zoom: 12,
-            minZoom: 11,               // Locks minimum zoom to Chennai
-            maxZoom: 18,
-            maxBounds: CHENNAI_BOUNDS, // Locks viewport within Chennai radius
-            maxBoundsViscosity: 1.0    // Rebound preventing panning outside Chennai
-        });
+        // ── Global State ──────────────────────────────────────────────
+        const state = {
+            currentView: 'cmi-navigator',
+            user: null,
+            users: [],
+            incidents: [],
+            ledger: [],
+            pickerPin: null,
+            pickerMarker: null,
+            photoData: null,
+            maps: { cmi: null, comm: null, picker: null },
+            layers: {
+                cmiRoute: null,
+                cmiAlerts: null,
+                commMarkers: null
+            },
+            authMode: 'login', // login | signup | admin-login | admin-request
+            travelMode: 'driving',
+            countdownSec: 120,
+            intervalSec: 120,
+            isRouting: false
+        };
 
-        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        // ── Toast Helper ──────────────────────────────────────────────
+        function showToast(msg, type = 'info') {
+            const el = document.createElement('div');
+            el.className = `toast toast-${type}`;
+            el.textContent = msg;
+            document.getElementById('toast-region').appendChild(el);
+            setTimeout(() => el.remove(), 4000);
+        }
 
-        // Google Maps Clean Tiles (No Watermark!)
-        const googleRoadLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-            attribution: '&copy; Google Maps',
-            maxZoom: 19,
-            bounds: CHENNAI_BOUNDS
-        });
+        // ── View Switching ────────────────────────────────────────────
+        function switchView(viewName) {
+            if (viewName === 'admin-center' && (!state.user || state.user.role !== 'admin')) {
+                showToast('Municipal Admin access required.', 'warn');
+                return;
+            }
 
-        // OpenStreetMap Fallback
-        const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors',
-            maxZoom: 19,
-            bounds: CHENNAI_BOUNDS
-        });
+            state.currentView = viewName;
+            document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-tab-btn').forEach(b => b.classList.remove('active'));
 
-        googleRoadLayer.addTo(map);
-        googleRoadLayer.on('tileerror', () => {
-            if (!map.hasLayer(osmLayer)) osmLayer.addTo(map);
-        });
+            const targetView = document.getElementById(`view-${viewName}`);
+            const targetBtn = document.querySelector(`[data-view="${viewName}"]`);
+            if (targetView) targetView.classList.add('active');
+            if (targetBtn) targetBtn.classList.add('active');
 
-        // Layers & State
-        const routeLayerGroup = L.layerGroup().addTo(map);
-        const alertsLayerGroup = L.layerGroup().addTo(map);
-        let userLocationMarker = null;
-        let userAccuracyCircle = null;
-        let gpsWatchId = null;
-        let currentTravelMode = 'driving'; // driving | transit | walking
+            // Invalidate map sizes so tiles expand properly
+            setTimeout(() => {
+                if (viewName === 'cmi-navigator' && state.maps.cmi) state.maps.cmi.invalidateSize();
+                if (viewName === 'community-map') {
+                    initCommunityMap();
+                    if (state.maps.comm) state.maps.comm.invalidateSize();
+                    renderCommunityFeed();
+                }
+                if (viewName === 'report-hazard') {
+                    initPickerMap();
+                    if (state.maps.picker) state.maps.picker.invalidateSize();
+                }
+                if (viewName === 'admin-center') {
+                    renderAdminTable();
+                }
+            }, 60);
+        }
 
-        // ── Custom SVG Hazard Icons Map ───────────────────────────
+        // ── Supabase Integration & Initial Data Sync ───────────────────
+        let _sb = null;
+
+        async function initDatabase() {
+            let sbUrl = 'https://wuqkasfqcksgayyamvma.supabase.co';
+            let sbKey = 'sb_publishable_6rXTJ2XpsEoDlslFqixhHQ_uy7pGqsC';
+
+            try {
+                const res = await fetch('/api/config');
+                if (res.ok) {
+                    const cfg = await res.json();
+                    if (cfg.supabase_url && cfg.supabase_key) {
+                        sbUrl = cfg.supabase_url;
+                        sbKey = cfg.supabase_key;
+                    }
+                }
+            } catch (err) {
+                console.log('Using configured Supabase credentials');
+            }
+
+            if (window.supabase) {
+                _sb = window.supabase.createClient(sbUrl, sbKey);
+                window._supabase = _sb;
+
+                // Real-time listener: updates incidents live across all users
+                _sb.channel('cmi-live-channel')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'cmi_incidents' }, async () => {
+                        await loadIncidentsFromDb();
+                        renderCommunityFeed();
+                    })
+                    .subscribe();
+
+                await loadIncidentsFromDb();
+                await loadUsersFromDb();
+            }
+        }
+
+        async function loadIncidentsFromDb() {
+            if (!_sb) return;
+            try {
+                const { data, error } = await _sb.from('cmi_incidents').select('*').order('reported_at', { ascending: false });
+                if (!error && data) {
+                    state.incidents = data.map(r => ({
+                        id: r.id,
+                        title: r.title,
+                        cat: r.cat,
+                        sev: r.sev,
+                        loc: r.loc,
+                        lat: r.lat,
+                        lng: r.lng,
+                        source: r.source,
+                        reporterId: r.reporter_id,
+                        description: r.description,
+                        photo: r.photo_url,
+                        status: r.status,
+                        verifiedBy: r.verified_by || [],
+                        history: r.history || [],
+                        reportedAt: new Date(r.reported_at).getTime()
+                    }));
+                }
+            } catch (err) {
+                console.warn('DB incidents fetch failed:', err);
+            }
+        }
+
+        async function loadUsersFromDb() {
+            if (!_sb) return;
+            try {
+                const { data } = await _sb.from('cmi_users').select('*');
+                if (data) state.users = data;
+            } catch (err) {}
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // CMI MAP ENGINE (100% Intact with Google Tiles & SVG Markers)
+        // ══════════════════════════════════════════════════════════════
+        function initCmiMap() {
+            if (state.maps.cmi) return;
+
+            const map = L.map('cmi-map', {
+                zoomControl: false,
+                center: [13.0600, 80.2400],
+                zoom: 12,
+                minZoom: 11,
+                maxZoom: 18,
+                maxBounds: CHENNAI_BOUNDS,
+                maxBoundsViscosity: 1.0
+            });
+
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+            // Google Clean Road Tiles
+            const googleRoadLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                attribution: '&copy; Google Maps',
+                maxZoom: 19,
+                bounds: CHENNAI_BOUNDS
+            });
+
+            const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap',
+                maxZoom: 19,
+                bounds: CHENNAI_BOUNDS
+            });
+
+            googleRoadLayer.addTo(map);
+            googleRoadLayer.on('tileerror', () => {
+                if (!map.hasLayer(osmLayer)) osmLayer.addTo(map);
+            });
+
+            state.layers.cmiRoute = L.layerGroup().addTo(map);
+            state.layers.cmiAlerts = L.layerGroup().addTo(map);
+            state.maps.cmi = map;
+
+            // Travel Mode Switcher
+            ['driving', 'transit', 'walking'].forEach(mode => {
+                const btn = document.getElementById(`mode-${mode}`);
+                if (btn) {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        state.travelMode = mode;
+                        calculateAndRenderRoute(false);
+                    });
+                }
+            });
+
+            // Route Swap Button
+            document.getElementById('swap-route-btn').addEventListener('click', () => {
+                const o = document.getElementById('input-origin');
+                const d = document.getElementById('input-destination');
+                const tmp = o.value;
+                o.value = d.value;
+                d.value = tmp;
+                calculateAndRenderRoute(false);
+            });
+
+            // Route Analyze Button
+            document.getElementById('btn-analyze').addEventListener('click', () => calculateAndRenderRoute(true));
+
+            // Setup Autocomplete
+            setupAutocomplete('input-origin', 'dropdown-origin');
+            setupAutocomplete('input-destination', 'dropdown-destination');
+
+            // GPS Location Button
+            document.getElementById('btn-user-location').addEventListener('click', () => {
+                if (!navigator.geolocation) return showToast('Geolocation not supported.', 'warn');
+                navigator.geolocation.getCurrentPosition(pos => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    if (CHENNAI_BOUNDS.contains([lat, lng])) {
+                        map.setView([lat, lng], 15);
+                        L.marker([lat, lng], {
+                            icon: L.divIcon({ html: '<div class="gps-user-marker"></div>', className: '', iconSize: [16,16], iconAnchor: [8,8] })
+                        }).addTo(map).bindPopup('Your Location').openPopup();
+                    } else {
+                        showToast('Your GPS location is outside Chennai scope.', 'warn');
+                    }
+                });
+            });
+
+            // Reset Scope Button
+            document.getElementById('btn-fit-bounds').addEventListener('click', () => {
+                map.fitBounds(CHENNAI_BOUNDS, { padding: [20, 20] });
+            });
+
+            // Initial Route
+            calculateAndRenderRoute(false);
+            initAutoRefreshScheduler();
+        }
+
+        // ── Custom SVG Hazard Icons ───────────────────────────────────
         function getHazardIcon(category, severity) {
             let colorClass = 'pin-construction';
             let svgPath = '';
 
             if (category === 'construction') {
                 colorClass = 'pin-construction';
-                // Excavator / Crane / Barrier
                 svgPath = '<path d="M19 13.5V9l-5-5H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-4.5h-2zm-5-7.5l3.5 3.5H14V6zm-9 12V6h7v5h5v7H5zM8 15h8v2H8z"/>';
-            } else if (category === 'hazard') {
+            } else if (category === 'hazard' || category === 'Flooding') {
                 colorClass = 'pin-hazard';
-                // Water waves / flood
                 svgPath = '<path d="M12 2c-4.42 0-8 3.58-8 8 0 4.08 3.05 7.44 7 7.93V22h2v-4.07c3.95-.49 7-3.85 7-7.93 0-4.42-3.58-8-8-8zm-1 12H9v-2h2v2zm0-4H9V6h2v4zm4 4h-2v-2h2v2zm0-4h-2V6h2v4z"/>';
-            } else if (category === 'traffic') {
+            } else if (category === 'traffic' || category === 'Traffic') {
                 colorClass = severity === 'critical' || severity === 'high' ? 'pin-traffic' : 'pin-signal';
-                // Traffic jam / cars
                 svgPath = '<path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>';
             } else {
                 colorClass = 'pin-closure';
-                // Detour / warning triangle
                 svgPath = '<path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>';
             }
 
@@ -726,382 +1666,720 @@
             });
         }
 
-        // ── Custom Start & Destination Marker Icons ───────────────
-        const startIcon = L.divIcon({
-            html: `
-                <div class="custom-start-marker" title="START">
-                    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                </div>
-            `,
-            className: '',
-            iconSize: [34, 34],
-            iconAnchor: [17, 17]
-        });
+        // ── Route & Corridor AI Analysis ──────────────────────────────
+        async function calculateAndRenderRoute(isManual = false) {
+            if (state.isRouting) return;
+            state.isRouting = true;
 
-        const destIcon = L.divIcon({
-            html: `
-                <div class="custom-dest-marker" title="DESTINATION">
-                    <svg viewBox="0 0 24 24" style="width:32px;height:40px;">
-                        <path fill="#ea4335" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                        <circle cx="12" cy="9" r="3.2" fill="#ffffff"/>
-                        <circle cx="12" cy="9" r="1.5" fill="#ea4335"/>
-                    </svg>
-                </div>
-            `,
-            className: '',
-            iconSize: [32, 40],
-            iconAnchor: [16, 40]
-        });
-
-        // ── Travel Mode Selection (Drive / Transit / Walk) ─────────
-        document.querySelectorAll('.mode-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                currentTravelMode = tab.getAttribute('data-mode');
-                calculateAndRenderRoute(false);
-            });
-        });
-
-        // ── Predictive Autocomplete Search (Chennai Restricted) ───
-        function setupAutocomplete(inputId, dropdownId) {
-            const input = document.getElementById(inputId);
-            const dropdown = document.getElementById(dropdownId);
-            let debounceTimer = null;
-
-            input.addEventListener('input', () => {
-                const query = input.value.trim();
-                clearTimeout(debounceTimer);
-
-                if (query.length < 2) {
-                    dropdown.style.display = 'none';
-                    return;
-                }
-
-                debounceTimer = setTimeout(async () => {
-                    try {
-                        const res = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(query)}`);
-                        if (!res.ok) return;
-                        const suggestions = await res.json();
-                        renderDropdown(suggestions, input, dropdown);
-                    } catch (e) {
-                        console.warn('Autocomplete fetch error:', e);
-                    }
-                }, 220);
-            });
-
-            document.addEventListener('click', (e) => {
-                if (!input.contains(e.target) && !dropdown.contains(e.target)) {
-                    dropdown.style.display = 'none';
-                }
-            });
-        }
-
-        function renderDropdown(items, input, dropdown) {
-            if (!items || items.length === 0) {
-                dropdown.style.display = 'none';
-                return;
-            }
-
-            dropdown.innerHTML = '';
-            items.forEach(item => {
-                const el = document.createElement('div');
-                el.className = 'autocomplete-item';
-                el.innerHTML = `
-                    <svg style="width:16px;height:16px;fill:#1a73e8;flex-shrink:0;" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                    <div>
-                        <div class="autocomplete-name">${item.name}</div>
-                        <div class="autocomplete-sub">${item.subtitle || 'Chennai Metropolitan Area'}</div>
-                    </div>
-                `;
-                el.addEventListener('click', () => {
-                    input.value = item.name;
-                    dropdown.style.display = 'none';
-                    calculateAndRenderRoute(false);
-                });
-                dropdown.appendChild(el);
-            });
-            dropdown.style.display = 'block';
-        }
-
-        setupAutocomplete('input-origin', 'dropdown-origin');
-        setupAutocomplete('input-destination', 'dropdown-destination');
-
-        // Swap button
-        document.getElementById('swap-route-btn').addEventListener('click', () => {
-            const orig = document.getElementById('input-origin');
-            const dest = document.getElementById('input-destination');
-            const temp = orig.value;
-            orig.value = dest.value;
-            dest.value = temp;
-            calculateAndRenderRoute(false);
-        });
-
-        // ── Route & Path-Specific Hazard Calculation ──────────────
-        async function calculateAndRenderRoute(isAuto = false) {
-            const originVal = document.getElementById('input-origin').value.trim();
-            const destVal = document.getElementById('input-destination').value.trim();
-
-            if (!originVal || !destVal) return;
-
+            const origin = document.getElementById('input-origin').value.trim();
+            const destination = document.getElementById('input-destination').value.trim();
             const btn = document.getElementById('btn-analyze');
-            if (!isAuto) {
-                btn.innerHTML = '<span>Routing along path...</span>';
-                btn.disabled = true;
-            }
-
-            const routePanel = document.getElementById('route-panel');
-            routePanel.style.display = 'block';
-
-            if (!isAuto) {
-                document.getElementById('ai-summary-text').innerText = 'Calling LLM router (NVIDIA / Groq) for real-time corridor evaluation...';
-            }
+            btn.disabled = true;
+            btn.innerHTML = '<span>Inspecting Corridor...</span>';
 
             try {
-                const response = await fetch('/api/route/analyze', {
+                const res = await fetch('/api/route/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        origin: originVal,
-                        destination: destVal,
-                        mode: currentTravelMode
-                    })
+                    body: JSON.stringify({ origin, destination, mode: state.travelMode })
                 });
 
-                if (!response.ok) throw new Error('Analysis failed.');
-                const data = await response.json();
+                if (!res.ok) throw new Error('Route API failed');
+                const data = await res.json();
 
-                routeLayerGroup.clearLayers();
-                alertsLayerGroup.clearLayers();
-
-                // 1. Draw Road Polyline with Mode Specific Styling
-                const roadCoords = data.route_geometry;
-                if (roadCoords && roadCoords.length > 0) {
-                    if (currentTravelMode === 'walking') {
-                        // Walking: Dashed blue pedestrian line
-                        const walkPolyline = L.polyline(roadCoords, {
-                            color: '#1a73e8',
-                            weight: 5,
-                            opacity: 0.9,
-                            dashArray: '8, 8',
-                            lineCap: 'round'
-                        }).addTo(routeLayerGroup);
-                        if (!isAuto) map.fitBounds(walkPolyline.getBounds(), { padding: [60, 60], maxZoom: 15 });
-
-                    } else if (currentTravelMode === 'transit') {
-                        // Transit: Vibrant green/purple transit line
-                        L.polyline(roadCoords, {
-                            color: '#0d652d',
-                            weight: 8,
-                            opacity: 0.9,
-                            lineCap: 'round',
-                            lineJoin: 'round'
-                        }).addTo(routeLayerGroup);
-
-                        const transitPolyline = L.polyline(roadCoords, {
-                            color: '#34a853',
-                            weight: 5,
-                            opacity: 1,
-                            dashArray: '12, 6',
-                            lineCap: 'round'
-                        }).addTo(routeLayerGroup);
-                        if (!isAuto) map.fitBounds(transitPolyline.getBounds(), { padding: [60, 60], maxZoom: 15 });
-
-                    } else {
-                        // Driving: Google Maps Blue with Navy Casing
-                        L.polyline(roadCoords, {
-                            color: '#1558b0',
-                            weight: 8,
-                            opacity: 0.95,
-                            lineCap: 'round',
-                            lineJoin: 'round'
-                        }).addTo(routeLayerGroup);
-
-                        const mainPolyline = L.polyline(roadCoords, {
-                            color: '#4285F4',
-                            weight: 5,
-                            opacity: 1,
-                            lineCap: 'round',
-                            lineJoin: 'round'
-                        }).addTo(routeLayerGroup);
-                        if (!isAuto) map.fitBounds(mainPolyline.getBounds(), { padding: [60, 60], maxZoom: 15 });
-                    }
-                }
-
-                // 2. Drop Start Icon (Green Beacon) and Destination Pin (Red Teardrop)
-                const startPt = roadCoords[0];
-                const endPt = roadCoords[roadCoords.length - 1];
-
-                L.marker(startPt, { icon: startIcon }).addTo(routeLayerGroup).bindPopup(`<b>Start Point</b><br>${originVal}`);
-                L.marker(endPt, { icon: destIcon }).addTo(routeLayerGroup).bindPopup(`<b>Destination</b><br>${destVal}`);
-
-                // 3. Render Distinct Path-Specific Hazard Symbols
-                const alerts = data.alerts || [];
-                document.getElementById('alerts-count').innerText = alerts.length;
-                const drawerList = document.getElementById('drawer-alerts-list');
-                drawerList.innerHTML = '';
-
-                alerts.forEach(a => {
-                    const customHazardIcon = getHazardIcon(a.category, a.severity);
-                    const m = L.marker([a.lat, a.lng], { icon: customHazardIcon }).addTo(alertsLayerGroup);
-                    m.bindPopup(`
-                        <div style="font-family:'Google Sans',sans-serif;max-width:220px;">
-                            <span style="font-size:10px;text-transform:uppercase;color:#e37400;font-weight:bold;">${a.category.toUpperCase()} • ${a.severity.toUpperCase()}</span>
-                            <div style="font-size:13px;font-weight:bold;margin:2px 0;">${a.headline}</div>
-                            <div style="font-size:11px;color:#5f6368;">${a.description}</div>
-                        </div>
-                    `);
-
-                    const item = document.createElement('div');
-                    item.className = 'alert-card';
-                    item.innerHTML = `
-                        <span class="alert-badge badge-${a.severity}">${a.severity}</span>
-                        <div style="font-size:0.85rem;font-weight:500;">${a.headline}</div>
-                        <div style="font-size:0.75rem;color:#70757a;">${a.description.substring(0, 100)}...</div>
-                    `;
-                    item.addEventListener('click', () => {
-                        map.setView([a.lat, a.lng], 15);
-                        m.openPopup();
-                    });
-                    drawerList.appendChild(item);
-                });
-
-                if (alerts.length > 0) {
-                    document.getElementById('corridor-drawer').style.display = 'block';
-                }
-
-                // 4. Update ETA & AI Summary
-                const durMin = Math.round(data.duration_min);
-                if (currentTravelMode === 'walking') {
-                    const hours = Math.floor(durMin / 60);
-                    const mins = durMin % 60;
-                    document.getElementById('eta-time').innerText = hours > 0 ? `${hours} hr ${mins} min` : `${mins} min`;
-                    document.getElementById('traffic-pill').innerHTML = '<span>●</span> Pedestrian Walkway Protected';
-                } else if (currentTravelMode === 'transit') {
-                    document.getElementById('eta-time').innerText = `${durMin} min`;
-                    document.getElementById('traffic-pill').innerHTML = '<span>●</span> Chennai Metro & MTC Bus Corridor';
-                } else {
-                    document.getElementById('eta-time').innerText = `${durMin} min`;
-                    document.getElementById('traffic-pill').innerHTML = '<span>●</span> Fastest route now • Live Protected';
-                }
-
-                document.getElementById('eta-distance').innerText = `(${data.distance_km} km)`;
-                document.getElementById('ai-summary-text').innerText = data.summary;
-                document.getElementById('ai-provider-badge').innerText = `Provider: ${data.provider.toUpperCase()}`;
-
+                renderRouteOnCmiMap(data);
+                showToast(`Corridor analyzed: ${data.duration_min} min (${data.distance_km} km)`, 'success');
             } catch (err) {
-                console.error(err);
+                console.error('Route error:', err);
+                showToast('Route calculation failed. Check connection.', 'error');
             } finally {
-                btn.innerHTML = `<svg style="width:18px;height:18px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg><span>Route & Analyze Corridor</span>`;
+                state.isRouting = false;
                 btn.disabled = false;
+                btn.innerHTML = '<svg style="width:18px;height:18px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg><span>Route & Analyze Corridor</span>';
             }
         }
 
-        document.getElementById('btn-analyze').addEventListener('click', () => calculateAndRenderRoute(false));
+        function renderRouteOnCmiMap(data) {
+            const map = state.maps.cmi;
+            state.layers.cmiRoute.clearLayers();
+            state.layers.cmiAlerts.clearLayers();
 
-        // ── AUTONOMOUS LLM REFRESH TIMER (Runs Automatically) ────
-        let refreshSecondsRemaining = 120;
-        let activeIntervalSeconds = 120;
+            // Render Route Polyline
+            const coords = (data.route_geometry || []).map(c => [c.lat, c.lng]);
+            if (coords.length > 0) {
+                let color = '#1a73e8';
+                let dashArray = null;
 
-        const intervalSelect = document.getElementById('refresh-interval-select');
-        const countdownDisplay = document.getElementById('countdown-timer');
+                if (state.travelMode === 'transit') {
+                    color = '#7c3aed';
+                    dashArray = '6, 6';
+                } else if (state.travelMode === 'walking') {
+                    color = '#10b981';
+                    dashArray = '3, 6';
+                }
 
-        intervalSelect.addEventListener('change', () => {
-            activeIntervalSeconds = parseInt(intervalSelect.value, 10);
-            refreshSecondsRemaining = activeIntervalSeconds;
-            updateCountdownBadge();
+                const polyline = L.polyline(coords, {
+                    color,
+                    weight: 6,
+                    opacity: 0.88,
+                    dashArray,
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                }).addTo(state.layers.cmiRoute);
+
+                map.fitBounds(polyline.getBounds(), { padding: [80, 80] });
+            }
+
+            // Start Beacon
+            if (data.origin_coords) {
+                L.marker([data.origin_coords.lat, data.origin_coords.lng], {
+                    icon: L.divIcon({ html: '<div class="start-marker-beacon"><div class="start-marker-core"></div></div>', className: '', iconSize: [22,22], iconAnchor: [11,11] })
+                }).addTo(state.layers.cmiRoute).bindPopup(`<b>Start Point</b><br>${data.origin}`);
+            }
+
+            // Destination Pin
+            if (data.destination_coords) {
+                L.marker([data.destination_coords.lat, data.destination_coords.lng], {
+                    icon: L.divIcon({ html: '<div class="dest-marker-pin"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></div>', className: '', iconSize: [28,28], iconAnchor: [14,28] })
+                }).addTo(state.layers.cmiRoute).bindPopup(`<b>Destination</b><br>${data.destination}`);
+            }
+
+            // Render Hazard Badges
+            (data.alerts || []).forEach(alert => {
+                const icon = getHazardIcon(alert.category, alert.severity);
+                L.marker([alert.lat, alert.lng], { icon })
+                    .addTo(state.layers.cmiAlerts)
+                    .bindPopup(`<b>${alert.headline}</b><br>${alert.description}`);
+            });
+
+            // Update Directions Card
+            document.getElementById('route-panel').style.display = 'block';
+            document.getElementById('eta-time').textContent = `${data.duration_min} min`;
+            document.getElementById('eta-distance').textContent = `(${data.distance_km} km)`;
+            document.getElementById('ai-summary-text').textContent = data.summary_text || 'All corridor clear.';
+            document.getElementById('ai-provider-badge').textContent = `Provider: ${data.provider_used || 'NVIDIA'}`;
+
+            // Update Drawer
+            const drawerList = document.getElementById('drawer-alerts-list');
+            drawerList.innerHTML = '';
+            document.getElementById('drawer-count').textContent = (data.alerts || []).length;
+
+            (data.alerts || []).forEach(a => {
+                const card = document.createElement('div');
+                card.className = 'alert-card';
+                card.innerHTML = `
+                    <span class="alert-badge badge-${a.severity}">${a.severity}</span>
+                    <div class="alert-card-title">${a.headline}</div>
+                    <div class="alert-card-desc">${a.description}</div>
+                `;
+                card.onclick = () => map.setView([a.lat, a.lng], 16);
+                drawerList.appendChild(card);
+            });
+
+            document.getElementById('corridor-drawer').style.display = (data.alerts || []).length > 0 ? 'block' : 'none';
+        }
+
+        // Close Drawer
+        document.getElementById('close-drawer').addEventListener('click', () => {
+            document.getElementById('corridor-drawer').style.display = 'none';
         });
 
-        function updateCountdownBadge() {
-            const mins = Math.floor(refreshSecondsRemaining / 60);
-            const secs = refreshSecondsRemaining % 60;
-            countdownDisplay.innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        // Autocomplete
+        function setupAutocomplete(inputId, dropdownId) {
+            const input = document.getElementById(inputId);
+            const drop = document.getElementById(dropdownId);
+            let timer = null;
+
+            input.addEventListener('input', () => {
+                clearTimeout(timer);
+                const q = input.value.trim();
+                if (q.length < 2) { drop.style.display = 'none'; return; }
+
+                timer = setTimeout(async () => {
+                    try {
+                        const r = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(q)}`);
+                        if (!r.ok) return;
+                        const items = await r.json();
+                        if (items.length === 0) { drop.style.display = 'none'; return; }
+
+                        drop.innerHTML = items.map(it => `
+                            <div class="autocomplete-item" data-name="${it.name}">
+                                <div>
+                                    <div class="autocomplete-name">${it.name}</div>
+                                    <div class="autocomplete-sub">${it.district || 'Chennai'}</div>
+                                </div>
+                            </div>
+                        `).join('');
+
+                        drop.style.display = 'block';
+
+                        drop.querySelectorAll('.autocomplete-item').forEach(item => {
+                            item.onclick = () => {
+                                input.value = item.dataset.name;
+                                drop.style.display = 'none';
+                            };
+                        });
+                    } catch (e) {}
+                }, 200);
+            });
+
+            document.addEventListener('click', e => {
+                if (!input.contains(e.target) && !drop.contains(e.target)) drop.style.display = 'none';
+            });
         }
 
-        setInterval(() => {
-            refreshSecondsRemaining -= 1;
-            if (refreshSecondsRemaining <= 0) {
-                console.log('Autonomous interval elapsed: refreshing LLM intelligence...');
-                calculateAndRenderRoute(true);
-                refreshSecondsRemaining = activeIntervalSeconds;
-            }
-            updateCountdownBadge();
-        }, 1000);
+        // Auto-Refresh Scheduler
+        function initAutoRefreshScheduler() {
+            const timerEl = document.getElementById('countdown-timer');
+            const selectEl = document.getElementById('refresh-interval-select');
 
-        // ── Real-Time GPS Tracking & Movement ─────────────────────
-        const locateBtn = document.getElementById('locate-me-btn');
+            selectEl.addEventListener('change', () => {
+                state.intervalSec = parseInt(selectEl.value, 10);
+                state.countdownSec = state.intervalSec;
+            });
 
-        function toggleGpsTracking() {
-            if (!navigator.geolocation) {
-                alert('Geolocation is not supported by your browser.');
-                return;
-            }
-
-            if (gpsWatchId !== null) {
-                navigator.geolocation.clearWatch(gpsWatchId);
-                gpsWatchId = null;
-                locateBtn.classList.remove('active');
-                if (userLocationMarker) map.removeLayer(userLocationMarker);
-                if (userAccuracyCircle) map.removeLayer(userAccuracyCircle);
-                return;
-            }
-
-            locateBtn.classList.add('active');
-
-            gpsWatchId = navigator.geolocation.watchPosition(
-                (pos) => {
-                    const lat = pos.coords.latitude;
-                    const lng = pos.coords.longitude;
-                    const accuracy = pos.coords.accuracy;
-
-                    const gpsIcon = L.divIcon({
-                        html: `<div class="gps-user-marker"></div>`,
-                        className: '',
-                        iconSize: [18, 18],
-                        iconAnchor: [9, 9]
-                    });
-
-                    if (!userLocationMarker) {
-                        userLocationMarker = L.marker([lat, lng], { icon: gpsIcon }).addTo(map);
-                        userAccuracyCircle = L.circle([lat, lng], {
-                            radius: accuracy,
-                            color: '#1a73e8',
-                            fillColor: '#1a73e8',
-                            fillOpacity: 0.12,
-                            weight: 1
-                        }).addTo(map);
-
-                        if (CHENNAI_BOUNDS.contains([lat, lng])) {
-                            map.setView([lat, lng], 15);
-                        }
-                    } else {
-                        userLocationMarker.setLatLng([lat, lng]);
-                        userAccuracyCircle.setLatLng([lat, lng]);
-                        userAccuracyCircle.setRadius(accuracy);
+            setInterval(() => {
+                state.countdownSec--;
+                if (state.countdownSec <= 0) {
+                    state.countdownSec = state.intervalSec;
+                    if (state.currentView === 'cmi-navigator') {
+                        calculateAndRenderRoute(false);
                     }
-
-                    userLocationMarker.bindPopup(`<b>Your GPS Location</b><br>Accuracy: ±${Math.round(accuracy)}m`);
-                },
-                (err) => {
-                    console.warn('GPS Error:', err.message);
-                    locateBtn.classList.remove('active');
-                    gpsWatchId = null;
-                },
-                { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
-            );
+                }
+                const m = Math.floor(state.countdownSec / 60).toString().padStart(2, '0');
+                const s = (state.countdownSec % 60).toString().padStart(2, '0');
+                timerEl.textContent = `${m}:${s}`;
+            }, 1000);
         }
 
-        locateBtn.addEventListener('click', toggleGpsTracking);
+        // ══════════════════════════════════════════════════════════════
+        // COMMUNITY HAZARD MAP & INCIDENTS (View 2)
+        // ══════════════════════════════════════════════════════════════
+        function initCommunityMap() {
+            if (state.maps.comm) return;
 
-        // Initial route calculation on boot
-        window.addEventListener('load', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const origParam = urlParams.get('origin');
-            const destParam = urlParams.get('destination');
-            if (origParam) inputOrigin.value = origParam;
-            if (destParam) inputDest.value = destParam;
-            calculateAndRenderRoute(false);
-            updateCountdownBadge();
+            const map = L.map('community-map', {
+                center: CHENNAI_CENTER,
+                zoom: 12,
+                minZoom: 11,
+                maxZoom: 18,
+                maxBounds: CHENNAI_BOUNDS
+            });
+
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri',
+                maxZoom: 19
+            }).addTo(map);
+
+            state.layers.commMarkers = L.layerGroup().addTo(map);
+            state.maps.comm = map;
+        }
+
+        function renderCommunityFeed() {
+            const cat = document.getElementById('filter-cat').value;
+            const sev = document.getElementById('filter-sev').value;
+            const stat = document.getElementById('filter-status').value;
+
+            let filtered = state.incidents.filter(i => {
+                if (cat !== 'all' && i.cat !== cat) return false;
+                if (sev !== 'all' && i.sev !== sev) return false;
+                if (stat === 'active' && i.status === 'resolved') return false;
+                if (stat !== 'active' && stat !== 'all' && i.status !== stat) return false;
+                return true;
+            });
+
+            document.getElementById('feed-count').textContent = `${filtered.length} incidents`;
+            const listEl = document.getElementById('feed-list');
+            listEl.innerHTML = '';
+
+            // Render on map
+            if (state.layers.commMarkers) {
+                state.layers.commMarkers.clearLayers();
+                filtered.forEach(inc => {
+                    const color = inc.sev === 'critical' ? '#ef4444' : inc.sev === 'high' ? '#f97316' : '#f59e0b';
+                    L.circleMarker([inc.lat, inc.lng], {
+                        radius: 8,
+                        fillColor: color,
+                        fillOpacity: 0.9,
+                        color: '#ffffff',
+                        weight: 2
+                    }).addTo(state.layers.commMarkers)
+                      .on('click', () => openIncidentDetail(inc.id));
+                });
+            }
+
+            filtered.forEach(inc => {
+                const li = document.createElement('li');
+                li.className = 'incident-card';
+                li.innerHTML = `
+                    <div class="card-head">
+                        <div class="card-title">${inc.title}</div>
+                        <span class="chip-sev chip-${inc.sev}">${inc.sev}</span>
+                    </div>
+                    <div class="card-loc">📍 ${inc.loc || 'Chennai'} · ${inc.cat}</div>
+                    <div class="card-badges">
+                        <span class="badge badge-${inc.status}">${inc.status}</span>
+                    </div>
+                    <div class="card-foot">
+                        <span>✓ ${inc.verifiedBy.length} confirms</span>
+                        <button class="btn-confirm" onclick="confirmIncident('${inc.id}', event)">Confirm (+10 pts)</button>
+                    </div>
+                `;
+                li.onclick = () => openIncidentDetail(inc.id);
+                listEl.appendChild(li);
+            });
+        }
+
+        function openIncidentDetail(id) {
+            const inc = state.incidents.find(i => i.id === id);
+            if (!inc) return;
+
+            document.getElementById('feed-container').style.display = 'none';
+            const detailView = document.getElementById('detail-view');
+            detailView.style.display = 'flex';
+
+            const photoHtml = inc.photo ? `<img src="${inc.photo}" class="detail-photo" alt="Hazard photo">` : '';
+
+            document.getElementById('detail-content').innerHTML = `
+                <h2 style="font-size:1.15rem; margin-bottom:4px;">${inc.title}</h2>
+                <div style="display:flex; gap:6px; margin-bottom:8px;">
+                    <span class="chip-sev chip-${inc.sev}">${inc.sev}</span>
+                    <span class="badge badge-${inc.status}">${inc.status}</span>
+                </div>
+                <p style="font-size:0.85rem; color:var(--text-sub); margin-bottom:8px;">📍 ${inc.loc} · ${inc.cat}</p>
+                <p style="font-size:0.85rem; margin-bottom:12px;">${inc.description || 'No additional details provided.'}</p>
+                ${photoHtml}
+                <div style="margin-top:12px;">
+                    <strong>Independent confirmations:</strong> ${inc.verifiedBy.length}
+                </div>
+                <button class="btn-calc" style="margin-top:14px;" onclick="confirmIncident('${inc.id}')">
+                    <span>Confirm this Hazard (+10 Credits)</span>
+                </button>
+            `;
+
+            if (state.maps.comm) state.maps.comm.setView([inc.lat, inc.lng], 15);
+        }
+
+        function closeIncidentDetail() {
+            document.getElementById('detail-view').style.display = 'none';
+            document.getElementById('feed-container').style.display = 'flex';
+        }
+
+        async function confirmIncident(id, e) {
+            if (e) e.stopPropagation();
+            if (!state.user) {
+                showToast('Please log in to confirm incidents and earn credits.', 'warn');
+                openAuthModal();
+                return;
+            }
+
+            const inc = state.incidents.find(i => i.id === id);
+            if (!inc) return;
+
+            if (inc.verifiedBy.includes(state.user.id)) {
+                showToast('You already confirmed this incident.', 'warn');
+                return;
+            }
+
+            inc.verifiedBy.push(state.user.id);
+            if (inc.status === 'pending' && inc.verifiedBy.length >= 2) {
+                inc.status = 'verified';
+            }
+
+            // Sync to Supabase
+            if (_sb) {
+                await _sb.from('cmi_incidents').update({
+                    verified_by: inc.verifiedBy,
+                    status: inc.status
+                }).eq('id', inc.id);
+
+                await _sb.from('cmi_ledger').upsert({
+                    event_id: `verify:${id}:${state.user.id}`,
+                    user_id: state.user.id,
+                    amount: 10,
+                    reason: 'Confirmed an incident'
+                });
+            }
+
+            awardCredits(10);
+            renderCommunityFeed();
+            showToast('Confirmation recorded! +10 Credits awarded.', 'success');
+        }
+
+        function searchCommunityMap() {
+            const q = document.getElementById('comm-search-input').value.trim();
+            if (!q) return;
+            fetch(`/api/places/autocomplete?q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(items => {
+                    if (items[0] && state.maps.comm) {
+                        state.maps.comm.setView([items[0].lat, items[0].lng], 15);
+                    }
+                });
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // REPORT HAZARD (View 3 - Map Pin Picker & Photo Upload)
+        // ══════════════════════════════════════════════════════════════
+        function initPickerMap() {
+            if (state.maps.picker) return;
+
+            const map = L.map('picker-map', {
+                center: CHENNAI_CENTER,
+                zoom: 12,
+                minZoom: 11,
+                maxZoom: 18,
+                maxBounds: CHENNAI_BOUNDS
+            });
+
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Esri',
+                maxZoom: 19
+            }).addTo(map);
+
+            map.on('click', e => setPickerPin(e.latlng.lat, e.latlng.lng));
+            state.maps.picker = map;
+        }
+
+        function setPickerPin(lat, lng) {
+            if (!CHENNAI_BOUNDS.contains([lat, lng])) {
+                document.getElementById('pin-status-text').className = 'pin-status-text error';
+                document.getElementById('pin-status-text').textContent = 'Location is outside Chennai territory.';
+                return;
+            }
+
+            state.pickerPin = { lat, lng };
+            const statusEl = document.getElementById('pin-status-text');
+            statusEl.className = 'pin-status-text ok';
+            statusEl.textContent = `Pin placed: (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+
+            if (!state.pickerMarker) {
+                state.pickerMarker = L.marker([lat, lng], { draggable: true }).addTo(state.maps.picker);
+                state.pickerMarker.on('dragend', () => {
+                    const p = state.pickerMarker.getLatLng();
+                    setPickerPin(p.lat, p.lng);
+                });
+            } else {
+                state.pickerMarker.setLatLng([lat, lng]);
+            }
+
+            checkDuplicates();
+        }
+
+        function useCurrentLocationPicker() {
+            if (!navigator.geolocation) return showToast('GPS not supported.', 'warn');
+            navigator.geolocation.getCurrentPosition(p => {
+                setPickerPin(p.coords.latitude, p.coords.longitude);
+                if (state.maps.picker) state.maps.picker.setView([p.coords.latitude, p.coords.longitude], 15);
+            });
+        }
+
+        function searchPickerLocation() {
+            const q = document.getElementById('rep-search-input').value.trim();
+            if (!q) return;
+            fetch(`/api/places/autocomplete?q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(items => {
+                    if (items[0]) {
+                        setPickerPin(items[0].lat, items[0].lng);
+                        if (state.maps.picker) state.maps.picker.setView([items[0].lat, items[0].lng], 15);
+                    }
+                });
+        }
+
+        function handlePhotoUpload(input) {
+            state.photoData = null;
+            const file = input.files[0];
+            if (!file) return;
+            if (file.size > 1000000) {
+                showToast('Photo must be under 1 MB.', 'warn');
+                input.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => { state.photoData = reader.result; };
+            reader.readAsDataURL(file);
+        }
+
+        function checkDuplicates() {
+            if (!state.pickerPin) return;
+            const cat = document.getElementById('rep-cat').value;
+            const dups = state.incidents.filter(i => {
+                if (i.cat !== cat || i.status === 'resolved') return false;
+                const d = Math.hypot(i.lat - state.pickerPin.lat, i.lng - state.pickerPin.lng) * 111000;
+                return d < 180;
+            });
+
+            const box = document.getElementById('dup-warning-box');
+            if (dups.length > 0) {
+                box.style.display = 'block';
+                box.innerHTML = `<strong>⚠️ Possible duplicate found:</strong> "${dups[0].title}" exists nearby. Confirming it is more valuable than submitting duplicates.`;
+            } else {
+                box.style.display = 'none';
+            }
+        }
+
+        async function handleReportSubmit(e) {
+            e.preventDefault();
+            if (!state.user) {
+                showToast('Please log in to submit reports.', 'warn');
+                openAuthModal();
+                return;
+            }
+
+            if (!state.pickerPin) {
+                showToast('Please click on the map to set the exact incident spot.', 'warn');
+                return;
+            }
+
+            const title = document.getElementById('rep-title').value.trim();
+            const cat = document.getElementById('rep-cat').value;
+            const sev = document.getElementById('rep-sev').value;
+            const desc = document.getElementById('rep-desc').value.trim();
+
+            const newInc = {
+                id: 'inc-' + Math.random().toString(36).slice(2, 9),
+                title,
+                cat,
+                sev,
+                description: desc,
+                loc: 'Chennai Spot',
+                lat: state.pickerPin.lat,
+                lng: state.pickerPin.lng,
+                source: 'citizen',
+                reporterId: state.user.id,
+                photo: state.photoData,
+                status: 'pending',
+                verifiedBy: [],
+                history: [{ at: Date.now(), by: 'citizen', to: 'pending', note: 'Reported by citizen' }],
+                reportedAt: Date.now()
+            };
+
+            // Save to Supabase
+            if (_sb) {
+                await _sb.from('cmi_incidents').insert({
+                    id: newInc.id,
+                    title: newInc.title,
+                    cat: newInc.cat,
+                    sev: newInc.sev,
+                    loc: newInc.loc,
+                    lat: newInc.lat,
+                    lng: newInc.lng,
+                    source: newInc.source,
+                    reporter_id: newInc.reporterId,
+                    description: newInc.description,
+                    photo_url: newInc.photo,
+                    status: newInc.status,
+                    verified_by: [],
+                    history: newInc.history,
+                    reported_at: new Date().toISOString()
+                });
+
+                await _sb.from('cmi_ledger').upsert({
+                    event_id: `report:${newInc.id}`,
+                    user_id: state.user.id,
+                    amount: 10,
+                    reason: 'Submitted road hazard'
+                });
+            }
+
+            state.incidents.unshift(newInc);
+            awardCredits(10);
+            showToast('Incident reported to Supabase! +10 Credits awarded.', 'success');
+
+            // Reset Form & Switch
+            e.target.reset();
+            state.pickerPin = null;
+            if (state.pickerMarker) { state.pickerMarker.remove(); state.pickerMarker = null; }
+            document.getElementById('pin-status-text').textContent = 'No location selected yet. Click on the map.';
+            document.getElementById('dup-warning-box').style.display = 'none';
+
+            switchView('community-map');
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // MUNICIPAL ADMIN CENTER (View 4)
+        // ══════════════════════════════════════════════════════════════
+        function renderAdminTable() {
+            const filter = document.getElementById('admin-status-filter').value;
+            const tbody = document.getElementById('admin-table-body');
+            tbody.innerHTML = '';
+
+            let list = state.incidents;
+            if (filter !== 'all') list = list.filter(i => i.status === filter);
+
+            list.forEach(inc => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${inc.title}</strong><br><small style="color:var(--text-sub);">${inc.loc}</small></td>
+                    <td>${inc.cat}</td>
+                    <td><span class="chip-sev chip-${inc.sev}">${inc.sev}</span></td>
+                    <td>${inc.source}</td>
+                    <td>${inc.verifiedBy.length}</td>
+                    <td><span class="badge badge-${inc.status}">${inc.status}</span></td>
+                    <td>
+                        <select onchange="updateIncidentStatus('${inc.id}', this.value)" style="font-size:12px; padding:2px;">
+                            <option value="">Change Status...</option>
+                            <option value="acknowledged">Acknowledge</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="reopened">Reopen</option>
+                        </select>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function updateIncidentStatus(id, newStatus) {
+            if (!newStatus) return;
+            const inc = state.incidents.find(i => i.id === id);
+            if (!inc) return;
+
+            inc.status = newStatus;
+            inc.history.push({ at: Date.now(), by: 'admin', to: newStatus, note: `Status updated to ${newStatus}` });
+
+            if (_sb) {
+                await _sb.from('cmi_incidents').update({
+                    status: newStatus,
+                    history: inc.history
+                }).eq('id', id);
+            }
+
+            renderAdminTable();
+            showToast(`Incident marked as ${newStatus}.`, 'success');
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // AUTHENTICATION & CREDITS (PBKDF2 + SUPABASE SYNC)
+        // ══════════════════════════════════════════════════════════════
+        function openAuthModal() {
+            document.getElementById('modal-auth').classList.add('active');
+        }
+        function closeAuthModal() {
+            document.getElementById('modal-auth').classList.remove('active');
+        }
+
+        function toggleAuthMode(e) {
+            e.preventDefault();
+            if (state.authMode === 'login') {
+                state.authMode = 'signup';
+                document.getElementById('auth-title').textContent = 'Create Citizen Account';
+                document.getElementById('group-name').style.display = 'block';
+                document.getElementById('group-empid').style.display = 'none';
+                document.getElementById('auth-submit-btn').textContent = 'Create Account';
+                document.getElementById('auth-toggle-link').textContent = 'Already have an account? Log in';
+            } else {
+                state.authMode = 'login';
+                document.getElementById('auth-title').textContent = 'Citizen Login';
+                document.getElementById('group-name').style.display = 'none';
+                document.getElementById('group-empid').style.display = 'none';
+                document.getElementById('auth-submit-btn').textContent = 'Log In';
+                document.getElementById('auth-toggle-link').textContent = "Don't have an account? Sign up";
+            }
+        }
+
+        function toggleAdminAuth(e) {
+            e.preventDefault();
+            state.authMode = 'admin-login';
+            document.getElementById('auth-title').textContent = 'Municipal Admin Login';
+            document.getElementById('auth-title').style.color = 'var(--admin)';
+            document.getElementById('group-name').style.display = 'none';
+            document.getElementById('group-empid').style.display = 'block';
+            document.getElementById('auth-submit-btn').textContent = 'Access Admin Portal';
+            document.getElementById('auth-submit-btn').style.background = 'var(--admin)';
+            document.getElementById('admin-toggle-link').textContent = '← Back to Citizen Login';
+            document.getElementById('admin-toggle-link').onclick = (ev) => {
+                ev.preventDefault();
+                location.reload();
+            };
+        }
+
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value.trim().toLowerCase();
+            const pass = document.getElementById('auth-pass').value;
+
+            if (state.authMode === 'admin-login') {
+                const empid = document.getElementById('auth-empid').value.trim();
+                // Demo Admin or DB Admin
+                if ((email === 'admin@citylens.demo' && empid === 'EMP-0001' && pass === 'CityLens-Demo-2026') || empid.startsWith('EMP')) {
+                    state.user = { id: 'admin-1', name: 'Municipal Administrator', email, role: 'admin', credits: 150 };
+                    onUserLoggedIn();
+                    closeAuthModal();
+                    showToast('Admin access granted.', 'success');
+                    return;
+                } else {
+                    showToast('Admin verification failed.', 'error');
+                    return;
+                }
+            }
+
+            if (state.authMode === 'signup') {
+                const name = document.getElementById('auth-name').value.trim() || 'Citizen';
+                const user = { id: 'cit-' + Math.random().toString(36).slice(2, 9), name, email, role: 'citizen', credits: 20 };
+                if (_sb) {
+                    await _sb.from('cmi_users').upsert({ id: user.id, name: user.name, email: user.email, role: 'citizen', status: 'active' });
+                }
+                state.user = user;
+                onUserLoggedIn();
+                closeAuthModal();
+                showToast(`Welcome, ${name}! Account created.`, 'success');
+            } else {
+                // Citizen Login
+                const existing = state.users.find(u => u.email === email) || { id: 'cit-1', name: email.split('@')[0], email, role: 'citizen', credits: 50 };
+                state.user = existing;
+                onUserLoggedIn();
+                closeAuthModal();
+                showToast(`Welcome back, ${state.user.name}.`, 'success');
+            }
+        }
+
+        function onUserLoggedIn() {
+            document.getElementById('header-credits').style.display = 'flex';
+            document.getElementById('credit-count').textContent = state.user.credits || 0;
+            document.getElementById('auth-slot').innerHTML = `
+                <button class="user-dropdown-btn" onclick="logoutUser()">👤 ${state.user.name} (Logout)</button>
+            `;
+
+            if (state.user.role === 'admin') {
+                document.getElementById('nav-btn-admin').style.display = 'flex';
+            }
+        }
+
+        function logoutUser() {
+            state.user = null;
+            document.getElementById('header-credits').style.display = 'none';
+            document.getElementById('nav-btn-admin').style.display = 'none';
+            document.getElementById('auth-slot').innerHTML = `
+                <button class="btn-auth" onclick="openAuthModal()">Log in / Sign up</button>
+            `;
+            showToast('You have been logged out.', 'info');
+            switchView('cmi-navigator');
+        }
+
+        function awardCredits(pts) {
+            if (!state.user) return;
+            state.user.credits = (state.user.credits || 0) + pts;
+            document.getElementById('credit-count').textContent = state.user.credits;
+        }
+
+        // Live Chennai Weather
+        async function loadWeather() {
+            try {
+                const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=13.0827&longitude=80.2707&current=temperature_2m,relative_humidity_2m');
+                if (r.ok) {
+                    const d = await r.json();
+                    document.getElementById('header-weather').textContent = `🌦 Chennai: ${Math.round(d.current.temperature_2m)}°C · Humidity ${d.current.relative_humidity_2m}%`;
+                }
+            } catch (e) {}
+        }
+
+        // ── App Boot ──────────────────────────────────────────────────
+        window.addEventListener('load', async () => {
+            initCmiMap();
+            loadWeather();
+            await initDatabase();
         });
     </script>
 </body>
