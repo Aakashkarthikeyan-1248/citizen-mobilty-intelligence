@@ -663,22 +663,42 @@
            ════════════════════════════════════════════════════════════ */
         #view-community-map {
             width: 100%;
-            height: 100%;
+            height: calc(100vh - var(--header-h));
             display: none;
-            grid-template-columns: minmax(0, 1fr) 380px;
+            overflow: hidden;
         }
         #view-community-map.active {
-            display: grid;
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) 390px !important;
+            height: calc(100vh - var(--header-h)) !important;
+            overflow: hidden !important;
         }
         .comm-map-wrapper {
             position: relative;
             height: 100%;
             width: 100%;
+            overflow: hidden;
         }
         #community-map {
             width: 100%;
             height: 100%;
             background: #e2e8f0;
+        }
+        .comm-sidebar {
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            display: flex !important;
+            flex-direction: column !important;
+            height: 100% !important;
+            overflow: hidden !important;
+            box-shadow: -4px 0 16px rgba(0,0,0,0.06);
+            z-index: 10;
+        }
+        .incident-card.card-highlight {
+            border-color: #1a73e8 !important;
+            background: #eff6ff !important;
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.28) !important;
+            transform: scale(1.02);
         }
 
         .comm-controls-panel {
@@ -1077,7 +1097,7 @@
             header#top-nav { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
             main#views-container { height: calc(100vh - 100px); }
             .gmap-card { width: calc(100% - 32px); }
-            #view-community-map { grid-template-columns: 1fr; grid-template-rows: 55vh 45vh; }
+            #view-community-map.active { grid-template-columns: 1fr !important; grid-template-rows: 55vh 45vh !important; }
             .form-row { grid-template-columns: 1fr; }
         }
     
@@ -1365,6 +1385,97 @@
             align-items: center;
             justify-content: center;
             padding: 16px;
+        }
+                .auth-view-sub {
+            font-size: 0.83rem;
+            color: #64748b;
+            margin-bottom: 16px;
+            line-height: 1.45;
+        }
+        .auth-banner-notice {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 0.82rem;
+            margin-bottom: 14px;
+            line-height: 1.45;
+        }
+        .btn-autofill-otp {
+            background: #f1f5f9;
+            border: 1px dashed #94a3b8;
+            color: #334155;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-autofill-otp:hover {
+            background: #e2e8f0;
+            border-color: #475569;
+        }
+        .circle-popup-card {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-width: 210px;
+            max-width: 270px;
+            padding: 2px;
+        }
+        .circle-popup-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        .circle-popup-badge {
+            font-size: 0.74rem;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+        .circle-popup-cat {
+            font-size: 0.7rem;
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #475569;
+            font-weight: 600;
+        }
+        .circle-popup-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0 0 4px 0;
+            line-height: 1.3;
+        }
+        .circle-popup-desc {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin: 0 0 6px 0;
+            line-height: 1.4;
+        }
+        .circle-popup-loc {
+            font-size: 0.76rem;
+            color: #94a3b8;
+            margin-bottom: 10px;
+        }
+        .btn-popup-view {
+            width: 100%;
+            background: #1a73e8;
+            color: #ffffff;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .btn-popup-view:hover {
+            background: #1557b0;
         }
         .auth-modal-overlay.active {
             display: flex !important;
@@ -2074,43 +2185,7 @@
         </section>
     </main>
 
-    <!-- ══════════════════════════════════════════════════════════════
-         AUTH MODAL DIALOG (PBKDF2 + SUPABASE DATABASE SYNC)
-         ══════════════════════════════════════════════════════════════ -->
-    <div class="modal-overlay" id="modal-auth">
-        <div class="modal-card">
-            <button class="modal-close" onclick="closeAuthModal()">✕</button>
-            <h2 id="auth-title" style="margin-bottom:6px;">Citizen Login</h2>
-            <p id="auth-sub" style="font-size:0.85rem; color:var(--text-sub); margin-bottom:16px;">Log in to earn credits and confirm road hazards.</p>
-
-            <form id="auth-form" onsubmit="handleAuthSubmit(event)">
-                <div class="form-group" id="group-name" style="display:none;">
-                    <label>Full Name</label>
-                    <input id="auth-name" type="text" class="form-control" placeholder="Aakash K">
-                </div>
-                <div class="form-group">
-                    <label>Email Address</label>
-                    <input id="auth-email" type="email" class="form-control" required placeholder="citizen@chennai.org">
-                </div>
-                <div class="form-group" id="group-empid" style="display:none;">
-                    <label>Employee ID</label>
-                    <input id="auth-empid" type="text" class="form-control" placeholder="EMP-0001">
-                </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input id="auth-pass" type="password" class="form-control" required minlength="8" placeholder="••••••••">
-                </div>
-
-                <button type="submit" class="btn-calc" id="auth-submit-btn" style="margin-top:12px;">Log In</button>
-            </form>
-
-            <div style="margin-top:14px; font-size:0.82rem; text-align:center;">
-                <a href="#" id="auth-toggle-link" onclick="toggleAuthMode(event)" style="color:var(--primary); font-weight:600; text-decoration:none;">Don't have an account? Sign up</a>
-                <br>
-                <a href="#" id="admin-toggle-link" onclick="toggleAdminAuth(event)" style="color:var(--admin); font-weight:600; text-decoration:none; display:inline-block; margin-top:6px;">Municipal Admin Login</a>
-            </div>
-        </div>
-    </div>
+    
 
     <!-- Toast Notifications Region -->
     <div class="toast-region" id="toast-region"></div>
@@ -2124,13 +2199,83 @@
         const CHENNAI_NE = [13.38, 80.38];
         const CHENNAI_BOUNDS = L.latLngBounds(CHENNAI_SW, CHENNAI_NE);
         const CHENNAI_CENTER = [13.0418, 80.2341];
+        const CHENNAI_SEEDS = [
+            {
+                id: 'seed-kathipara-truck',
+                title: 'Truck Collision Blocking 2 Lanes on Flyover Ramp',
+                cat: 'Traffic',
+                sev: 'high',
+                loc: 'Kathipara Junction descending loop toward Guindy',
+                lat: 13.0075,
+                lng: 80.2030,
+                source: 'citizen',
+                reporterId: 'cit-mwd9idr',
+                description: 'Overturned commercial truck has blocked the left two lanes. Traffic slowed to 5 km/h.',
+                photo: null,
+                status: 'pending',
+                verifiedBy: ['cit-1', 'cit-2'],
+                history: [],
+                reportedAt: Date.now() - 3600000
+            },
+            {
+                id: 'seed-perambur-flooding',
+                title: 'Flooded Subway & Drainage Tank Overflow',
+                cat: 'Flooding',
+                sev: 'critical',
+                loc: 'Perambur Loco Works Underpass',
+                lat: 13.1110,
+                lng: 80.2320,
+                source: 'citizen',
+                reporterId: 'cit-auto88',
+                description: 'Severe water accumulation reaching 2.5 feet under railway bridge. Two-wheelers stalled.',
+                photo: null,
+                status: 'verified',
+                verifiedBy: ['cit-3', 'cit-4', 'cit-5'],
+                history: [],
+                reportedAt: Date.now() - 7200000
+            },
+            {
+                id: 'seed-usman-cavein',
+                title: 'Deep Trench Cave-In Without Barricades',
+                cat: 'Pothole',
+                sev: 'critical',
+                loc: 'South Usman Road near T. Nagar Bus Terminus',
+                lat: 13.0418,
+                lng: 80.2335,
+                source: 'citizen',
+                reporterId: 'cit-tnagar-rider',
+                description: 'Rain runoff opened a 4-foot sinkhole beside the sewer line. Dangerous for night motorists.',
+                photo: null,
+                status: 'pending',
+                verifiedBy: ['cit-1'],
+                history: [],
+                reportedAt: Date.now() - 10800000
+            },
+            {
+                id: 'seed-annasalai-barricade',
+                title: 'Metro Rail Phase-II Barricade Road Constriction',
+                cat: 'Roadblock',
+                sev: 'medium',
+                loc: 'Anna Salai near Thousand Lights Metro Station',
+                lat: 13.0560,
+                lng: 80.2520,
+                source: 'citizen',
+                reporterId: 'cit-bus45',
+                description: 'Metro pillar construction barricades narrowing the 4-lane stretch into single-file crawl.',
+                photo: null,
+                status: 'verified',
+                verifiedBy: ['cit-6', 'cit-7', 'cit-8'],
+                history: [],
+                reportedAt: Date.now() - 14400000
+            }
+        ];
 
         // ── Global State ──────────────────────────────────────────────
         const state = {
             currentView: 'cmi-navigator',
             user: null,
             users: [],
-            incidents: [],
+            incidents: [...CHENNAI_SEEDS],
             ledger: [],
             pickerPin: null,
             pickerMarker: null,
@@ -2181,7 +2326,13 @@
             const targetBtn = document.querySelector(`[data-view="${viewName}"]`);
             if (targetView) {
                 targetView.classList.add('active');
-                targetView.style.display = viewName === 'report-hazard' ? 'flex' : 'block';
+                if (viewName === 'community-map') {
+                    targetView.style.display = 'grid';
+                } else if (viewName === 'report-hazard') {
+                    targetView.style.display = 'flex';
+                } else {
+                    targetView.style.display = 'block';
+                }
             }
             if (targetBtn) targetBtn.classList.add('active');
 
@@ -2211,6 +2362,9 @@
             setTimeout(() => {
                 if (viewName === 'cmi-navigator' && state.maps.cmi) {
                     state.maps.cmi.invalidateSize();
+                }
+                if (viewName === 'community-map' && state.maps.comm) {
+                    state.maps.comm.invalidateSize();
                 }
             }, 200);
         }
@@ -2757,6 +2911,7 @@
 
             state.layers.commMarkers = L.layerGroup().addTo(map);
             state.maps.comm = map;
+            renderCommunityFeed();
         }
 
         function renderCommunityFeed() {
@@ -2776,25 +2931,52 @@
             const listEl = document.getElementById('feed-list');
             listEl.innerHTML = '';
 
-            // Render on map
+            // Render on map with rich popups, tooltips, and click-to-highlight
             if (state.layers.commMarkers) {
                 state.layers.commMarkers.clearLayers();
                 filtered.forEach(inc => {
                     const color = inc.sev === 'critical' ? '#ef4444' : inc.sev === 'high' ? '#f97316' : '#f59e0b';
-                    L.circleMarker([inc.lat, inc.lng], {
-                        radius: 8,
+                    const marker = L.circleMarker([inc.lat, inc.lng], {
+                        radius: 10,
                         fillColor: color,
-                        fillOpacity: 0.9,
+                        fillOpacity: 0.95,
                         color: '#ffffff',
-                        weight: 2
-                    }).addTo(state.layers.commMarkers)
-                      .on('click', () => openIncidentDetail(inc.id));
+                        weight: 3
+                    }).addTo(state.layers.commMarkers);
+
+                    const popupContent = `
+                        <div class="circle-popup-card">
+                            <div class="circle-popup-head">
+                                <span class="circle-popup-badge" style="background:${color}22; color:${color};">● ${inc.sev.toUpperCase()} HAZARD</span>
+                                <span class="circle-popup-cat">${inc.cat}</span>
+                            </div>
+                            <h4 class="circle-popup-title">${inc.title}</h4>
+                            <p class="circle-popup-desc">${inc.description || 'Reported by fellow citizen.'}</p>
+                            <div class="circle-popup-loc">📍 ${inc.loc || 'Chennai'}</div>
+                            <button class="btn-popup-view" onclick="openIncidentDetail('${inc.id}')">
+                                View Full Report & Vote (+10 pts)
+                            </button>
+                        </div>
+                    `;
+
+                    marker.bindPopup(popupContent, { offset: [0, -6], closeButton: true });
+                    marker.bindTooltip(`<b>${inc.title}</b><br><span style="color:${color};font-weight:700;">${inc.sev.toUpperCase()}</span> · Click circle for details`, {
+                        direction: 'top',
+                        offset: [0, -8],
+                        opacity: 0.95
+                    });
+
+                    marker.on('click', () => {
+                        marker.openPopup();
+                        highlightIncidentCard(inc.id);
+                    });
                 });
             }
 
             filtered.forEach(inc => {
                 const li = document.createElement('li');
                 li.className = 'incident-card';
+                li.id = 'incident-card-' + inc.id;
                 const confirmsCount = (inc.verifiedBy || []).length;
                 const statusTag = inc.status === 'verified' 
                     ? '<span class="badge" style="background:#dcfce7; color:#15803d; font-weight:700;">🟢 Verified Legit</span>'
@@ -2826,6 +3008,15 @@
                 li.onclick = () => openIncidentDetail(inc.id);
                 listEl.appendChild(li);
             });
+        }
+
+                function highlightIncidentCard(id) {
+            const card = document.getElementById(`incident-card-${id}`);
+            if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                card.classList.add('card-highlight');
+                setTimeout(() => card.classList.remove('card-highlight'), 2200);
+            }
         }
 
         function openIncidentDetail(id) {
@@ -3149,19 +3340,24 @@
         }
 
         // ══════════════════════════════════════════════════════════════
-        // AUTHENTICATION & CREDITS (PBKDF2 + SUPABASE SYNC)
+        // AUTHENTICATION & CREDITS (EMAIL, MOBILE & PASSWORD + OTP RESET)
         // ══════════════════════════════════════════════════════════════
-        function openAuthModal(role = 'citizen') {
-            const modal = document.getElementById('auth-modal') || document.getElementById('modal-auth');
+        function openAuthModal(initialRole = 'citizen', initialView = 'login') {
+            const modal = document.getElementById('auth-modal');
             if (modal) {
                 modal.classList.add('active');
                 modal.style.display = 'flex';
             }
-            selectAuthRole(role);
+            if (initialRole === 'admin') {
+                selectAuthRole('admin');
+            } else {
+                selectAuthRole('citizen');
+                switchAuthMode(initialView);
+            }
         }
 
         function closeAuthModal() {
-            const modal = document.getElementById('auth-modal') || document.getElementById('modal-auth');
+            const modal = document.getElementById('auth-modal');
             if (modal) {
                 modal.classList.remove('active');
                 modal.style.display = 'none';
@@ -3169,58 +3365,265 @@
         }
 
         function handleAuthModalClick(e) {
-            if (e.target && (e.target.id === 'auth-modal' || e.target.id === 'modal-auth')) {
+            if (e.target && e.target.id === 'auth-modal') {
                 closeAuthModal();
             }
         }
 
         function selectAuthRole(role) {
-            const tabCitizen = document.getElementById('tab-role-citizen');
-            const tabAdmin = document.getElementById('tab-role-admin');
-            const formCitizen = document.getElementById('form-role-citizen');
-            const formAdmin = document.getElementById('form-role-admin');
+            state.authRole = role;
+            const tabCit = document.getElementById('tab-role-citizen');
+            const tabAdm = document.getElementById('tab-role-admin');
             const title = document.getElementById('auth-modal-title');
-
+            
             if (role === 'admin') {
-                if (tabCitizen) tabCitizen.classList.remove('active');
-                if (tabAdmin) tabAdmin.classList.add('active');
-                if (formCitizen) formCitizen.style.display = 'none';
-                if (formAdmin) formAdmin.style.display = 'block';
+                if (tabCit) tabCit.classList.remove('active');
+                if (tabAdm) tabAdm.classList.add('active');
                 if (title) title.textContent = 'Municipal Official Access';
+                hideAllAuthViews();
+                const vAdmin = document.getElementById('auth-view-admin');
+                if (vAdmin) vAdmin.style.display = 'block';
             } else {
-                if (tabCitizen) tabCitizen.classList.add('active');
-                if (tabAdmin) tabAdmin.classList.remove('active');
-                if (formCitizen) formCitizen.style.display = 'block';
-                if (formAdmin) formAdmin.style.display = 'none';
-                if (title) title.textContent = 'Sign In to CMI';
+                if (tabCit) tabCit.classList.add('active');
+                if (tabAdm) tabAdm.classList.remove('active');
+                if (title) title.textContent = 'Citizen Sign In / Register';
+                switchAuthMode(state.authMode || 'login');
             }
         }
 
-        function submitCitizenLogin() {
-            const name = (document.getElementById('citizen-input-name') ? document.getElementById('citizen-input-name').value : 'Aakash Karthikeyan').trim() || 'Aakash Karthikeyan';
-            const phone = (document.getElementById('citizen-input-phone') ? document.getElementById('citizen-input-phone').value : '+91 98401 23456').trim() || '+91 98401 23456';
-            state.user = {
-                id: 'cit-' + Math.random().toString(36).substr(2, 7),
-                name: name,
-                phone: phone,
-                role: 'citizen',
-                credits: 980
-            };
-            onUserLoggedIn();
-            closeAuthModal();
-            showToast(`Welcome back, ${state.user.name}! (980 Civic Credits)`, 'success');
+        function hideAllAuthViews() {
+            const views = ['login', 'signup', 'forgot-1', 'forgot-2', 'forgot-3', 'admin'];
+            views.forEach(v => {
+                const el = document.getElementById(`auth-view-${v}`);
+                if (el) el.style.display = 'none';
+            });
         }
 
-        function submitAdminLogin() {
-            const officerId = (document.getElementById('admin-input-id') ? document.getElementById('admin-input-id').value : 'GCC-TRAFFIC-DIV-04').trim() || 'GCC-TRAFFIC-DIV-04';
-            const dept = (document.getElementById('admin-input-dept') ? document.getElementById('admin-input-dept').value : 'Greater Chennai Corporation (GCC)').trim();
+        function switchAuthMode(mode) {
+            state.authMode = mode;
+            hideAllAuthViews();
+            const title = document.getElementById('auth-modal-title');
+            const roleTabs = document.getElementById('auth-role-tabs');
+            
+            if (roleTabs) {
+                roleTabs.style.display = (mode.startsWith('forgot-') || mode === 'signup') ? 'none' : 'flex';
+            }
+
+            if (mode === 'login') {
+                if (title) title.textContent = 'Citizen Login';
+                const el = document.getElementById('auth-view-login');
+                if (el) el.style.display = 'block';
+            } else if (mode === 'signup') {
+                if (title) title.textContent = 'Create Citizen Account';
+                const el = document.getElementById('auth-view-signup');
+                if (el) el.style.display = 'block';
+            } else if (mode === 'forgot-1') {
+                if (title) title.textContent = 'Reset Password (Step 1 of 3)';
+                const el = document.getElementById('auth-view-forgot-1');
+                if (el) el.style.display = 'block';
+            } else if (mode === 'forgot-2') {
+                if (title) title.textContent = 'Verify Mobile OTP (Step 2 of 3)';
+                const el = document.getElementById('auth-view-forgot-2');
+                if (el) el.style.display = 'block';
+            } else if (mode === 'forgot-3') {
+                if (title) title.textContent = 'Set New Password (Step 3 of 3)';
+                const el = document.getElementById('auth-view-forgot-3');
+                if (el) el.style.display = 'block';
+            }
+        }
+
+        function handleCitizenLogin(e) {
+            if (e) e.preventDefault();
+            const email = (document.getElementById('login-email').value || '').trim().toLowerCase();
+            const mobile = (document.getElementById('login-mobile').value || '').trim();
+            const pass = document.getElementById('login-password').value;
+
+            if (!email || !mobile || !pass) {
+                showToast('Please enter your email, mobile number, and password.', 'warn');
+                return;
+            }
+
+            let user = (state.users || []).find(u => u.email.toLowerCase() === email);
+            if (user && user.password && user.password !== pass) {
+                showToast('Incorrect password. Please verify or click Forgot Password.', 'error');
+                return;
+            }
+
+            if (!user) {
+                user = {
+                    id: 'cit-' + Math.random().toString(36).substr(2, 7),
+                    name: email.split('@')[0],
+                    email: email,
+                    phone: mobile,
+                    password: pass,
+                    role: 'citizen',
+                    credits: 120
+                };
+                state.users.push(user);
+            } else {
+                user.phone = mobile;
+            }
+
+            state.user = user;
+            onUserLoggedIn();
+            closeAuthModal();
+            showToast(`Welcome back, ${state.user.name}! (${state.user.credits || 980} Civic Credits)`, 'success');
+        }
+
+        async function handleCitizenSignup(e) {
+            if (e) e.preventDefault();
+            const name = (document.getElementById('signup-name').value || '').trim();
+            const email = (document.getElementById('signup-email').value || '').trim().toLowerCase();
+            const mobile = (document.getElementById('signup-mobile').value || '').trim();
+            const pass = document.getElementById('signup-password').value;
+            const confirmPass = document.getElementById('signup-confirm-password').value;
+
+            if (!name || !email || !mobile || !pass) {
+                showToast('Please fill all required fields.', 'warn');
+                return;
+            }
+            if (pass !== confirmPass) {
+                showToast('Passwords do not match. Please re-enter.', 'error');
+                return;
+            }
+
+            const newUser = {
+                id: 'cit-' + Math.random().toString(36).substr(2, 7),
+                name: name,
+                email: email,
+                phone: mobile,
+                password: pass,
+                role: 'citizen',
+                credits: 50
+            };
+
+            state.users.push(newUser);
+            state.user = newUser;
+            onUserLoggedIn();
+            closeAuthModal();
+            showToast(`🎉 Account created! Welcome, ${newUser.name} (+50 Welcome Credits)`, 'success');
+
+            if (_sb) {
+                _sb.from('cmi_users').upsert({
+                    id: newUser.id,
+                    name: newUser.name,
+                    email: newUser.email,
+                    role: 'citizen',
+                    status: 'active'
+                }).catch(() => {});
+            }
+        }
+
+        // ── Forgot Password Flow (OTP -> Reset Email -> New Password) ──
+        function handleSendForgotOtp(e) {
+            if (e) e.preventDefault();
+            const email = (document.getElementById('forgot-email').value || '').trim().toLowerCase();
+            const mobile = (document.getElementById('forgot-mobile').value || '').trim();
+
+            if (!email || !mobile) {
+                showToast('Please provide your registered email and mobile number.', 'warn');
+                return;
+            }
+
+            const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+            state.forgotOtp = {
+                email,
+                mobile,
+                code: otpCode,
+                expiresAt: Date.now() + 600000
+            };
+
+            document.getElementById('otp-target-mobile').textContent = mobile;
+            document.getElementById('demo-otp-display').textContent = otpCode;
+            document.getElementById('forgot-otp-input').value = '';
+
+            switchAuthMode('forgot-2');
+            showToast(`📲 Security OTP [${otpCode}] sent via SMS to ${mobile}. Valid 10m.`, 'success');
+        }
+
+        function autofillForgotOtp() {
+            if (state.forgotOtp && state.forgotOtp.code) {
+                document.getElementById('forgot-otp-input').value = state.forgotOtp.code;
+                showToast('OTP code auto-filled.', 'info');
+            }
+        }
+
+        function handleVerifyForgotOtp(e) {
+            if (e) e.preventDefault();
+            const enteredOtp = (document.getElementById('forgot-otp-input').value || '').trim();
+
+            if (!state.forgotOtp || !state.forgotOtp.code) {
+                showToast('Please request a new OTP code first.', 'warn');
+                switchAuthMode('forgot-1');
+                return;
+            }
+
+            if (enteredOtp !== state.forgotOtp.code) {
+                showToast('Invalid OTP code. Please check SMS or click Auto-Fill.', 'error');
+                return;
+            }
+
+            document.getElementById('reset-target-email').textContent = state.forgotOtp.email;
+            document.getElementById('reset-new-password').value = '';
+            document.getElementById('reset-confirm-password').value = '';
+
+            switchAuthMode('forgot-3');
+            showToast(`📧 Password Reset link authorized for ${state.forgotOtp.email}.`, 'success');
+        }
+
+        async function handleResetPassword(e) {
+            if (e) e.preventDefault();
+            const newPass = document.getElementById('reset-new-password').value;
+            const confirmPass = document.getElementById('reset-confirm-password').value;
+
+            if (!newPass || newPass.length < 6) {
+                showToast('Password must be at least 6 characters.', 'warn');
+                return;
+            }
+            if (newPass !== confirmPass) {
+                showToast('Passwords do not match. Please re-enter.', 'error');
+                return;
+            }
+
+            const targetEmail = state.forgotOtp ? state.forgotOtp.email : 'aakashkarthikeyan1248@gmail.com';
+            let user = (state.users || []).find(u => u.email.toLowerCase() === targetEmail.toLowerCase());
+            if (user) {
+                user.password = newPass;
+            } else {
+                user = {
+                    id: 'cit-' + Math.random().toString(36).substr(2, 7),
+                    name: targetEmail.split('@')[0],
+                    email: targetEmail,
+                    phone: state.forgotOtp ? state.forgotOtp.mobile : '+91 98401 23456',
+                    password: newPass,
+                    role: 'citizen',
+                    credits: 980
+                };
+                state.users.push(user);
+            }
+
+            state.user = user;
+            state.forgotOtp = null;
+            onUserLoggedIn();
+            closeAuthModal();
+            showToast(`🎉 Password updated successfully! Welcome back, ${state.user.name}.`, 'success');
+        }
+
+        function handleAdminLogin(e) {
+            if (e) e.preventDefault();
+            const officerId = (document.getElementById('admin-login-id').value || '').trim();
+            const phone = (document.getElementById('admin-login-phone').value || '').trim();
+            const pass = document.getElementById('admin-login-pass').value;
+
             state.user = {
                 id: 'admin-' + Math.random().toString(36).substr(2, 7),
-                name: `Officer (${officerId})`,
-                department: dept,
+                name: `Officer (${officerId || 'GCC-TRAFFIC-DIV-04'})`,
+                department: 'Greater Chennai Corporation (GCC)',
+                phone: phone || '+91 98400 11223',
                 role: 'admin',
                 credits: 1500
             };
+
             onUserLoggedIn();
             closeAuthModal();
             showToast('Municipal Official authorized. Dispatch center unlocked.', 'success');
@@ -3229,84 +3632,19 @@
 
         function quickLoginDemo(role) {
             if (role === 'admin') {
-                submitAdminLogin();
+                handleAdminLogin();
             } else {
-                submitCitizenLogin();
-            }
-        }
-
-        function toggleAuthMode(e) {
-            e.preventDefault();
-            if (state.authMode === 'login') {
-                state.authMode = 'signup';
-                document.getElementById('auth-title').textContent = 'Create Citizen Account';
-                document.getElementById('group-name').style.display = 'block';
-                document.getElementById('group-empid').style.display = 'none';
-                document.getElementById('auth-submit-btn').textContent = 'Create Account';
-                document.getElementById('auth-toggle-link').textContent = 'Already have an account? Log in';
-            } else {
-                state.authMode = 'login';
-                document.getElementById('auth-title').textContent = 'Citizen Login';
-                document.getElementById('group-name').style.display = 'none';
-                document.getElementById('group-empid').style.display = 'none';
-                document.getElementById('auth-submit-btn').textContent = 'Log In';
-                document.getElementById('auth-toggle-link').textContent = "Don't have an account? Sign up";
-            }
-        }
-
-        function toggleAdminAuth(e) {
-            e.preventDefault();
-            state.authMode = 'admin-login';
-            document.getElementById('auth-title').textContent = 'Municipal Admin Login';
-            document.getElementById('auth-title').style.color = 'var(--admin)';
-            document.getElementById('group-name').style.display = 'none';
-            document.getElementById('group-empid').style.display = 'block';
-            document.getElementById('auth-submit-btn').textContent = 'Access Admin Portal';
-            document.getElementById('auth-submit-btn').style.background = 'var(--admin)';
-            document.getElementById('admin-toggle-link').textContent = '← Back to Citizen Login';
-            document.getElementById('admin-toggle-link').onclick = (ev) => {
-                ev.preventDefault();
-                location.reload();
-            };
-        }
-
-        async function handleAuthSubmit(e) {
-            e.preventDefault();
-            const email = document.getElementById('auth-email').value.trim().toLowerCase();
-            const pass = document.getElementById('auth-pass').value;
-
-            if (state.authMode === 'admin-login') {
-                const empid = document.getElementById('auth-empid').value.trim();
-                // Demo Admin or DB Admin
-                if ((email === 'admin@citylens.demo' && empid === 'EMP-0001' && pass === 'CityLens-Demo-2026') || empid.startsWith('EMP')) {
-                    state.user = { id: 'admin-1', name: 'Municipal Administrator', email, role: 'admin', credits: 150 };
-                    onUserLoggedIn();
-                    closeAuthModal();
-                    showToast('Admin access granted.', 'success');
-                    return;
-                } else {
-                    showToast('Admin verification failed.', 'error');
-                    return;
-                }
-            }
-
-            if (state.authMode === 'signup') {
-                const name = document.getElementById('auth-name').value.trim() || 'Citizen';
-                const user = { id: 'cit-' + Math.random().toString(36).slice(2, 9), name, email, role: 'citizen', credits: 20 };
-                if (_sb) {
-                    await _sb.from('cmi_users').upsert({ id: user.id, name: user.name, email: user.email, role: 'citizen', status: 'active' });
-                }
-                state.user = user;
+                state.user = {
+                    id: 'cit-1',
+                    name: 'Aakash Karthikeyan',
+                    email: 'aakashkarthikeyan1248@gmail.com',
+                    phone: '+91 98401 23456',
+                    role: 'citizen',
+                    credits: 980
+                };
                 onUserLoggedIn();
                 closeAuthModal();
-                showToast(`Welcome, ${name}! Account created.`, 'success');
-            } else {
-                // Citizen Login
-                const existing = state.users.find(u => u.email === email) || { id: 'cit-1', name: email.split('@')[0], email, role: 'citizen', credits: 50 };
-                state.user = existing;
-                onUserLoggedIn();
-                closeAuthModal();
-                showToast(`Welcome back, ${state.user.name}.`, 'success');
+                showToast(`Welcome back, ${state.user.name}! (980 Civic Credits)`, 'success');
             }
         }
 
@@ -3349,32 +3687,38 @@
                 }
             } catch (e) {}
         }
-
         // ── App Boot ──────────────────────────────────────────────────
         window.addEventListener('load', async () => {
             initCmiMap();
             loadWeather();
             await initDatabase();
         });
-        // Expose critical functions globally on window
+                // Expose critical functions globally on window
         window.switchView = switchView;
         window.openAuthModal = openAuthModal;
         window.closeAuthModal = closeAuthModal;
-        window.selectAuthRole = selectAuthRole;
         window.handleAuthModalClick = handleAuthModalClick;
+        window.selectAuthRole = selectAuthRole;
+        window.switchAuthMode = switchAuthMode;
         window.handleCitizenLogin = handleCitizenLogin;
+        window.handleCitizenSignup = handleCitizenSignup;
+        window.handleSendForgotOtp = handleSendForgotOtp;
+        window.autofillForgotOtp = autofillForgotOtp;
+        window.handleVerifyForgotOtp = handleVerifyForgotOtp;
+        window.handleResetPassword = handleResetPassword;
         window.handleAdminLogin = handleAdminLogin;
+        window.quickLoginDemo = quickLoginDemo;
         window.logoutUser = logoutUser;
+        window.highlightIncidentCard = highlightIncidentCard;
+        window.openIncidentDetail = openIncidentDetail;
+        window.closeIncidentDetail = closeIncidentDetail;
         window.confirmIncident = confirmIncident;
         window.flagIncident = flagIncident;
         window.calculateAndRenderRoute = calculateAndRenderRoute;
-        window.quickLoginDemo = quickLoginDemo;
-        window.submitAdminLogin = submitAdminLogin;
-        window.submitCitizenLogin = submitCitizenLogin;
     </script>
 
     <!-- ══════════════════════════════════════════════════════════
-         AUTH / LOGIN MODAL (Citizen vs Municipal Admin)
+         AUTH / LOGIN & REGISTRATION & RESET PASSWORD MODAL
          ══════════════════════════════════════════════════════════ -->
     <div class="auth-modal-overlay" id="auth-modal" onclick="handleAuthModalClick(event)">
         <div class="auth-modal-window" onclick="event.stopPropagation()">
@@ -3383,7 +3727,8 @@
                 <button class="auth-modal-close" onclick="closeAuthModal()">✕</button>
             </div>
             
-            <div class="auth-role-tabs">
+            <!-- Top Role Tabs -->
+            <div class="auth-role-tabs" id="auth-role-tabs">
                 <button class="auth-role-tab active" id="tab-role-citizen" onclick="selectAuthRole('citizen')">
                     👤 Citizen / Commuter
                 </button>
@@ -3393,40 +3738,156 @@
             </div>
             
             <div class="auth-modal-body">
-                <!-- Citizen Form -->
-                <div id="form-role-citizen">
-                    <div class="auth-form-group">
-                        <label>Citizen Name / Email</label>
-                        <input type="text" id="citizen-input-name" placeholder="Aakash Karthikeyan" value="Aakash Karthikeyan">
-                    </div>
-                    <div class="auth-form-group">
-                        <label>Mobile Number (for OTP / points)</label>
-                        <input type="text" id="citizen-input-phone" placeholder="+91 98765 43210" value="+91 98401 23456">
-                    </div>
-                    <button class="btn-auth-submit" onclick="submitCitizenLogin()">Sign In as Citizen</button>
+                <!-- ── VIEW 1: CITIZEN LOGIN (EMAIL, MOBILE & PASSWORD) ── -->
+                <div class="auth-subview" id="auth-view-login">
+                    <p class="auth-view-sub">Log in with your registered email, mobile number, and password.</p>
+                    <form onsubmit="handleCitizenLogin(event)">
+                        <div class="auth-form-group">
+                            <label>Email Address *</label>
+                            <input type="email" id="login-email" placeholder="aakashkarthikeyan1248@gmail.com" value="aakashkarthikeyan1248@gmail.com" required>
+                        </div>
+                        <div class="auth-form-group">
+                            <label>Mobile Number (Registered) *</label>
+                            <input type="tel" id="login-mobile" placeholder="+91 98401 23456" value="+91 98401 23456" required>
+                        </div>
+                        <div class="auth-form-group">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <label style="margin:0;">Password *</label>
+                                <a href="javascript:void(0)" onclick="switchAuthMode('forgot-1')" style="font-size:0.78rem; color:#1a73e8; font-weight:600; text-decoration:none;">Forgot Password?</a>
+                            </div>
+                            <input type="password" id="login-password" placeholder="••••••••" value="password123" required>
+                        </div>
+                        <button type="submit" class="btn-auth-submit">Sign In as Citizen</button>
+                    </form>
                     
+                    <div style="margin-top:14px; font-size:0.84rem; text-align:center; color:#64748b;">
+                        New to CMI? <a href="javascript:void(0)" onclick="switchAuthMode('signup')" style="color:#1a73e8; font-weight:700; text-decoration:none;">Sign Up for an account</a>
+                    </div>
+
                     <div class="auth-demo-divider">Quick Demo Login</div>
                     <button class="btn-quick-demo" onclick="quickLoginDemo('citizen')">
                         <span>🚀</span> One-Click Demo: <strong>Aakash Karthikeyan (980 pts)</strong>
                     </button>
                 </div>
-                
-                <!-- Admin Form -->
-                <div id="form-role-admin" style="display:none;">
-                    <div class="auth-form-group">
-                        <label>Municipal Officer ID / Email</label>
-                        <input type="text" id="admin-input-id" placeholder="GCC-OFFICER-402" value="GCC-TRAFFIC-DIV-04">
+
+                <!-- ── VIEW 2: CITIZEN SIGN UP (NEW USERS) ── -->
+                <div class="auth-subview" id="auth-view-signup" style="display:none;">
+                    <p class="auth-view-sub">Create your account with your email, mobile number, and password to start reporting hazards and earn credits.</p>
+                    <form onsubmit="handleCitizenSignup(event)">
+                        <div class="auth-form-group">
+                            <label>Full Name *</label>
+                            <input type="text" id="signup-name" placeholder="Aakash Karthikeyan" value="Aakash Karthikeyan" required>
+                        </div>
+                        <div class="auth-form-group">
+                            <label>Email Address *</label>
+                            <input type="email" id="signup-email" placeholder="citizen@chennai.org" required>
+                        </div>
+                        <div class="auth-form-group">
+                            <label>Mobile Number *</label>
+                            <input type="tel" id="signup-mobile" placeholder="+91 98401 23456" required>
+                        </div>
+                        <div class="auth-form-group">
+                            <label>Create Password *</label>
+                            <input type="password" id="signup-password" placeholder="Min 6 characters" minlength="6" required>
+                        </div>
+                        <div class="auth-form-group">
+                            <label>Confirm Password *</label>
+                            <input type="password" id="signup-confirm-password" placeholder="Re-enter password" minlength="6" required>
+                        </div>
+                        <button type="submit" class="btn-auth-submit">Create Account & Claim 50 Credits</button>
+                    </form>
+                    
+                    <div style="margin-top:14px; font-size:0.84rem; text-align:center; color:#64748b;">
+                        Already registered? <a href="javascript:void(0)" onclick="switchAuthMode('login')" style="color:#1a73e8; font-weight:700; text-decoration:none;">Log In here</a>
                     </div>
-                    <div class="auth-form-group">
-                        <label>Department</label>
-                        <input type="text" id="admin-input-dept" placeholder="Greater Chennai Corporation / Traffic Police" value="Greater Chennai Corporation (GCC)">
+                </div>
+
+                <!-- ── VIEW 3: FORGOT PASSWORD - STEP 1 (REQUEST MOBILE OTP) ── -->
+                <div class="auth-subview" id="auth-view-forgot-1" style="display:none;">
+                    <p class="auth-view-sub">Enter your registered email and mobile number. We will dispatch a 6-digit verification OTP to your mobile phone to authorize the reset email.</p>
+                    <form onsubmit="handleSendForgotOtp(event)">
+                        <div class="auth-form-group">
+                            <label>Registered Email Address *</label>
+                            <input type="email" id="forgot-email" placeholder="aakashkarthikeyan1248@gmail.com" value="aakashkarthikeyan1248@gmail.com" required>
+                        </div>
+                        <div class="auth-form-group">
+                            <label>Registered Mobile Number *</label>
+                            <input type="tel" id="forgot-mobile" placeholder="+91 98401 23456" value="+91 98401 23456" required>
+                        </div>
+                        <button type="submit" class="btn-auth-submit" style="background:#0284c7;">Send Security OTP to Mobile 📲</button>
+                    </form>
+                    <div style="margin-top:14px; font-size:0.84rem; text-align:center;">
+                        <a href="javascript:void(0)" onclick="switchAuthMode('login')" style="color:#64748b; font-weight:600; text-decoration:none;">← Back to Login</a>
                     </div>
-                    <button class="btn-auth-submit btn-auth-admin" onclick="submitAdminLogin()">Sign In as Municipal Official</button>
+                </div>
+
+                <!-- ── VIEW 4: FORGOT PASSWORD - STEP 2 (VERIFY MOBILE OTP) ── -->
+                <div class="auth-subview" id="auth-view-forgot-2" style="display:none;">
+                    <div class="auth-banner-notice" id="otp-sent-banner">
+                        📲 <strong>OTP Dispatched:</strong> A 6-digit code has been sent to your mobile phone <strong id="otp-target-mobile">+91 98401 23456</strong>.
+                    </div>
+                    <p class="auth-view-sub">Enter the 6-digit verification code below to authorize the password reset email.</p>
+                    <form onsubmit="handleVerifyForgotOtp(event)">
+                        <div class="auth-form-group" style="text-align:center;">
+                            <label style="text-align:center;">6-Digit Mobile OTP *</label>
+                            <input type="text" id="forgot-otp-input" placeholder="• • • • • •" maxlength="6" style="text-align:center; font-size:1.4rem; font-weight:800; letter-spacing:0.35em;" required>
+                        </div>
+                        <div style="margin-bottom:12px; text-align:center;">
+                            <button type="button" class="btn-autofill-otp" onclick="autofillForgotOtp()">⚡ Auto-Fill Demo OTP (<span id="demo-otp-display">------</span>)</button>
+                        </div>
+                        <button type="submit" class="btn-auth-submit" style="background:#16a34a;">Verify Mobile OTP & Send Reset Email 📧</button>
+                    </form>
+                    <div style="margin-top:12px; font-size:0.84rem; display:flex; justify-content:space-between;">
+                        <a href="javascript:void(0)" onclick="handleSendForgotOtp(event)" style="color:#1a73e8; font-weight:600; text-decoration:none;">Resend OTP</a>
+                        <a href="javascript:void(0)" onclick="switchAuthMode('login')" style="color:#64748b; font-weight:600; text-decoration:none;">Cancel</a>
+                    </div>
+                </div>
+
+                <!-- ── VIEW 5: FORGOT PASSWORD - STEP 3 (NEW PASSWORD & EMAIL RESET LINK) ── -->
+                <div class="auth-subview" id="auth-view-forgot-3" style="display:none;">
+                    <div class="auth-banner-notice" style="background:#ecfdf5; border-color:#6ee7b7; color:#065f46;">
+                        📧 <strong>Reset Email Authorized:</strong> Reset link dispatched to <strong id="reset-target-email">user@email.com</strong>. Identity verified via mobile OTP!
+                    </div>
+                    <p class="auth-view-sub">Set your new password below to restore access to your account.</p>
+                    <form onsubmit="handleResetPassword(event)">
+                        <div class="auth-form-group">
+                            <label>New Password *</label>
+                            <input type="password" id="reset-new-password" placeholder="Min 6 characters" minlength="6" required>
+                        </div>
+                        <div class="auth-form-group">
+                            <label>Confirm New Password *</label>
+                            <input type="password" id="reset-confirm-password" placeholder="Confirm new password" minlength="6" required>
+                        </div>
+                        <button type="submit" class="btn-auth-submit" style="background:#15803d;">Save New Password & Sign In 🔒</button>
+                    </form>
+                </div>
+
+                <!-- ── VIEW 6: MUNICIPAL ADMIN LOGIN ── -->
+                <div class="auth-subview" id="auth-view-admin" style="display:none;">
+                    <p class="auth-view-sub">Authorized portal for Greater Chennai Corporation (GCC) engineers and Traffic Police command.</p>
+                    <form onsubmit="handleAdminLogin(event)">
+                        <div class="auth-form-group">
+                            <label>Municipal Officer ID / Email *</label>
+                            <input type="text" id="admin-login-id" placeholder="GCC-TRAFFIC-DIV-04" value="GCC-TRAFFIC-DIV-04" required>
+                        </div>
+                        <div class="auth-form-group">
+                            <label>Official Mobile Number *</label>
+                            <input type="tel" id="admin-login-phone" placeholder="+91 98400 11223" value="+91 98400 11223" required>
+                        </div>
+                        <div class="auth-form-group">
+                            <label>Department Security Key / Password *</label>
+                            <input type="password" id="admin-login-pass" placeholder="••••••••" value="GCC-Traffic-2026" required>
+                        </div>
+                        <button type="submit" class="btn-auth-submit btn-auth-admin">Sign In as Municipal Official</button>
+                    </form>
                     
                     <div class="auth-demo-divider">Quick Demo Access</div>
                     <button class="btn-quick-demo" onclick="quickLoginDemo('admin')">
                         <span>🛡️</span> One-Click Demo: <strong>Chief Traffic Inspector (GCC Admin)</strong>
                     </button>
+                    <div style="margin-top:14px; font-size:0.84rem; text-align:center;">
+                        <a href="javascript:void(0)" onclick="selectAuthRole('citizen')" style="color:#64748b; font-weight:600; text-decoration:none;">← Back to Citizen Login</a>
+                    </div>
                 </div>
             </div>
         </div>
