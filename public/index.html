@@ -4253,14 +4253,24 @@
 
             const statusTitleEl = document.getElementById('otp-status-title');
             const statusNoticeEl = document.getElementById('otp-status-notice');
+            const emergencyWrapEl = document.getElementById('otp-emergency-wrap');
+            const emergencyCodeEl = document.getElementById('emergency-code-display');
+
             if (smsDelivered) {
-                if (statusTitleEl) statusTitleEl.innerHTML = '📲 <strong>SMS Sent to Your Phone!</strong>';
-                if (statusNoticeEl) statusNoticeEl.innerHTML = `An SMS with your 6-digit verification code has been dispatched to your mobile phone <strong>${mobile}</strong> via Renflair Gateway.`;
-                showToast(`📲 Real SMS sent to ${mobile} via Renflair Gateway!`, 'success');
+                if (statusTitleEl) statusTitleEl.innerHTML = '📲 <strong>SMS Delivered to Your Phone!</strong>';
+                if (statusNoticeEl) statusNoticeEl.innerHTML = `A 6-digit verification code has been delivered via SMS to your mobile phone <strong>${mobile}</strong>. Please check your SMS messages.`;
+                if (emergencyWrapEl) emergencyWrapEl.style.display = 'none';
+                showToast(`📲 Real SMS delivered to ${mobile}!`, 'success');
             } else {
-                if (statusTitleEl) statusTitleEl.innerHTML = '📲 <strong>SMS OTP Dispatched</strong>';
-                if (statusNoticeEl) statusNoticeEl.innerHTML = `A 6-digit OTP code has been dispatched to your mobile phone <strong>${mobile}</strong>. Check your SMS inbox.`;
-                showToast(`📲 SMS OTP dispatched to ${mobile}`, 'info');
+                if (statusTitleEl) statusTitleEl.innerHTML = '⚠️ <strong>SMS Gateway Notice</strong>';
+                if (statusNoticeEl) {
+                    statusNoticeEl.innerHTML = `Renflair SMS Gateway balance is exhausted (0 credits remaining). Recharge at <a href="https://renflair.in" target="_blank" style="color:#0284c7; font-weight:700;">renflair.in</a> to resume SMS delivery.`;
+                }
+                if (emergencyWrapEl) {
+                    emergencyWrapEl.style.display = 'block';
+                    if (emergencyCodeEl) emergencyCodeEl.textContent = otpCode;
+                }
+                showToast(`⚠️ Renflair SMS Gateway: Balance exhausted (0 credits)`, 'warn');
             }
 
             switchAuthMode('forgot-2');
@@ -4657,6 +4667,10 @@
                         </div>
                         <div id="otp-status-notice" style="font-size:0.82rem; line-height:1.5; color:#166534;">
                             A 6-digit verification code has been dispatched via SMS to your registered mobile number <strong id="otp-target-mobile">+91 98401 23456</strong>.
+                        </div>
+                        <div id="otp-emergency-wrap" style="display:none; margin-top:10px; padding:8px 12px; background:#fffbeb; border:1px solid #fde68a; border-radius:6px; font-size:0.82rem; color:#92400e;">
+                            <div style="font-weight:700; margin-bottom:3px;">🔑 Emergency Verification Code: <span id="emergency-code-display" style="background:#fef3c7; padding:2px 8px; border-radius:4px; font-size:1.1rem; letter-spacing:0.18em; color:#78350f;">------</span></div>
+                            <div style="font-size:0.72rem; color:#6b7280;">(Displayed only because Renflair SMS balance is currently exhausted: 0 credits)</div>
                         </div>
                         <div style="font-size:0.74rem; color:#475569; margin-top:8px; line-height:1.4;">
                             🔒 Delivered securely via Renflair SMS Gateway. Please check your phone's SMS messages.
