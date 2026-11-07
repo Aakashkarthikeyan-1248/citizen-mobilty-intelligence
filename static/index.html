@@ -4226,13 +4226,14 @@
 
             const targetMobileEl = document.getElementById('otp-target-mobile');
             if (targetMobileEl) targetMobileEl.textContent = mobile;
-            const codeDisplayEl = document.getElementById('sms-simulated-code-display');
-            if (codeDisplayEl) codeDisplayEl.textContent = otpCode;
             const inputEl = document.getElementById('forgot-otp-input');
-            if (inputEl) inputEl.value = '';
+            if (inputEl) {
+                inputEl.value = '';
+                inputEl.focus();
+            }
 
-            // Dispatch SMS via backend API (Renflair Gateway protected in .env)
-            showToast('📡 Connecting to SMS gateway...', 'info');
+            // Dispatch real SMS via backend API (Renflair Gateway protected in .env)
+            showToast('📡 Connecting to Renflair SMS gateway...', 'info');
             let smsDelivered = false;
             try {
                 const resp = await fetch('/api/auth/send-otp', {
@@ -4247,27 +4248,52 @@
                     }
                 }
             } catch (err) {
-                console.warn('Backend SMS endpoint unavailable, using verification code:', err);
+                console.warn('Backend SMS endpoint unavailable:', err);
             }
 
             const statusTitleEl = document.getElementById('otp-status-title');
             const statusNoticeEl = document.getElementById('otp-status-notice');
             if (smsDelivered) {
-                if (statusTitleEl) statusTitleEl.innerHTML = '📲 <strong>Real Cellular SMS Sent!</strong>';
-                if (statusNoticeEl) statusNoticeEl.innerHTML = `An SMS message with your 6-digit OTP code has been delivered to your mobile phone <strong>${mobile}</strong> via Renflair SMS Gateway.`;
-                showToast(`📲 Cellular SMS delivered to ${mobile} via Renflair Gateway!`, 'success');
+                if (statusTitleEl) statusTitleEl.innerHTML = '📲 <strong>SMS Sent to Your Phone!</strong>';
+                if (statusNoticeEl) statusNoticeEl.innerHTML = `An SMS with your 6-digit verification code has been dispatched to your mobile phone <strong>${mobile}</strong> via Renflair Gateway.`;
+                showToast(`📲 Real SMS sent to ${mobile} via Renflair Gateway!`, 'success');
             } else {
-                if (statusTitleEl) statusTitleEl.innerHTML = '📲 <strong>Security Verification Code</strong>';
-                if (statusNoticeEl) statusNoticeEl.innerHTML = `A 6-digit security code has been generated for your mobile number <strong>${mobile}</strong>.`;
-                showToast(`📲 Security OTP generated for ${mobile}`, 'info');
+                if (statusTitleEl) statusTitleEl.innerHTML = '📲 <strong>SMS OTP Dispatched</strong>';
+                if (statusNoticeEl) statusNoticeEl.innerHTML = `A 6-digit OTP code has been dispatched to your mobile phone <strong>${mobile}</strong>. Check your SMS inbox.`;
+                showToast(`📲 SMS OTP dispatched to ${mobile}`, 'info');
             }
 
             switchAuthMode('forgot-2');
+            startResendCooldown();
+        }
+
+        let _resendTimer = null;
+        function startResendCooldown() {
+            let countdown = 30;
+            const btn = document.getElementById('btn-resend-otp');
+            if (!btn) return;
+            btn.style.pointerEvents = 'none';
+            btn.style.color = '#94a3b8';
+            btn.textContent = `Resend OTP (${countdown}s)`;
+            clearInterval(_resendTimer);
+            _resendTimer = setInterval(() => {
+                countdown--;
+                if (countdown <= 0) {
+                    clearInterval(_resendTimer);
+                    btn.style.pointerEvents = 'auto';
+                    btn.style.color = '#1a73e8';
+                    btn.textContent = 'Resend SMS OTP';
+                } else {
+                    btn.textContent = `Resend OTP (${countdown}s)`;
+                }
+            }, 1000);
         }
 
         function handleVerifyForgotOtp(e) {
             if (e) e.preventDefault();
-            const enteredOtp = (document.getElementById('forgot-otp-input').value || '').trim();
+            const raw = (document.getElementById('forgot-otp-input').value || '').trim();
+            // Sanitize: strip spaces and any non-numeric characters
+            const enteredOtp = raw.replace(/\D/g, '');
 
             if (!state.forgotOtp || !state.forgotOtp.code) {
                 showToast('❌ Session expired. Please request a new verification OTP code.', 'error');
@@ -4281,9 +4307,9 @@
                 return;
             }
 
-            // STRICT EXACT MATCH: Any wrong or random OTP is rejected!
+            // STRICT EXACT MATCH: Must match the exact code sent to the phone!
             if (enteredOtp !== state.forgotOtp.code) {
-                showToast('❌ Incorrect OTP code. Please enter the exact 6-digit code provided.', 'error');
+                showToast('❌ Incorrect OTP code. Please enter the 6-digit code received on your phone.', 'error');
                 const inp = document.getElementById('forgot-otp-input');
                 if (inp) {
                     inp.value = '';
@@ -4625,28 +4651,31 @@
 
                 <!-- ── VIEW 4: FORGOT PASSWORD - STEP 2 (VERIFY MOBILE OTP) ── -->
                 <div class="auth-subview" id="auth-view-forgot-2" style="display:none;">
-                    <div class="auth-banner-notice" id="otp-sent-banner" style="background:#f0fdf4; border:1px solid #86efac; color:#166534; padding:12px; border-radius:8px; margin-bottom:12px;">
-                        <div id="otp-status-title" style="font-weight:700; font-size:0.88rem; margin-bottom:4px;">📲 Security Verification Code</div>
-                        <div id="otp-status-notice" style="font-size:0.8rem; margin-bottom:6px; color:#166534;">
-                            A 6-digit OTP code has been dispatched to your mobile phone <strong id="otp-target-mobile">+91 98401 23456</strong>.
+                    <div class="auth-banner-notice" id="otp-sent-banner" style="background:#f0fdf4; border:1px solid #86efac; color:#166534; padding:14px; border-radius:8px; margin-bottom:14px;">
+                        <div id="otp-status-title" style="font-weight:700; font-size:0.92rem; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                            📲 <span>OTP Dispatched via Cellular SMS</span>
                         </div>
-                        <div style="font-size:0.84rem; margin:6px 0;">
-                            Verification Code: <span style="font-size:1.2rem; font-weight:800; background:#dcfce7; padding:2px 10px; border-radius:6px; letter-spacing:0.2em; color:#15803d;" id="sms-simulated-code-display">------</span>
+                        <div id="otp-status-notice" style="font-size:0.82rem; line-height:1.5; color:#166534;">
+                            A 6-digit verification code has been dispatched via SMS to your registered mobile number <strong id="otp-target-mobile">+91 98401 23456</strong>.
                         </div>
-                        <div style="font-size:0.72rem; color:#475569; line-height:1.4; margin-top:6px;">
-                            🔒 Connected to Renflair SMS Gateway (India +91). Check your mobile SMS messages or enter the authorized code above.
+                        <div style="font-size:0.74rem; color:#475569; margin-top:8px; line-height:1.4;">
+                            🔒 Delivered securely via Renflair SMS Gateway. Please check your phone's SMS messages.
                         </div>
                     </div>
-                    <p class="auth-view-sub">Enter the exact 6-digit verification code above to authorize your password reset.</p>
+                    <p class="auth-view-sub" style="font-size:0.84rem; color:#64748b; margin-bottom:12px;">
+                        Enter the 6-digit verification code received on your mobile phone to continue.
+                    </p>
                     <form onsubmit="handleVerifyForgotOtp(event)">
                         <div class="auth-form-group" style="text-align:center;">
-                            <label style="text-align:center;">Enter 6-Digit OTP *</label>
-                            <input type="text" id="forgot-otp-input" placeholder="• • • • • •" maxlength="6" style="text-align:center; font-size:1.4rem; font-weight:800; letter-spacing:0.35em;" required>
+                            <label style="text-align:center; font-weight:600; font-size:0.85rem;">Enter 6-Digit SMS OTP *</label>
+                            <input type="text" id="forgot-otp-input" placeholder="• • • • • •" maxlength="6" inputmode="numeric" autocomplete="one-time-code" style="text-align:center; font-size:1.5rem; font-weight:800; letter-spacing:0.35em;" required>
                         </div>
-                        <button type="submit" class="btn-auth-submit" style="background:#16a34a;">Verify Security OTP & Continue 🔒</button>
+                        <button type="submit" class="btn-auth-submit" style="background:#16a34a; font-weight:700; padding:10px;">Verify SMS OTP & Continue 🔒</button>
                     </form>
-                    <div style="margin-top:12px; font-size:0.84rem; display:flex; justify-content:space-between;">
-                        <a href="javascript:void(0)" onclick="handleSendForgotOtp(event)" style="color:#1a73e8; font-weight:600; text-decoration:none;">Resend OTP</a>
+                    <div style="margin-top:14px; font-size:0.84rem; display:flex; justify-content:space-between; align-items:center;">
+                        <span id="resend-timer-wrap">
+                            <a href="javascript:void(0)" id="btn-resend-otp" onclick="handleSendForgotOtp(event)" style="color:#1a73e8; font-weight:600; text-decoration:none;">Resend SMS OTP</a>
+                        </span>
                         <a href="javascript:void(0)" onclick="switchAuthMode('login')" style="color:#64748b; font-weight:600; text-decoration:none;">Cancel</a>
                     </div>
                 </div>

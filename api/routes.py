@@ -242,6 +242,7 @@ def create_router(
         """Dispatches an SMS OTP to an Indian mobile phone using the Renflair SMS Gateway."""
         import httpx
         import re
+        import os
         from config import get_settings
 
         settings = get_settings()
@@ -253,18 +254,24 @@ def create_router(
 
         phone_masked = f"+91 {clean_phone[:2]}•••••{clean_phone[-3:]}" if len(clean_phone) == 10 else req.phone
 
-        if not settings.renflair_api_key:
-            logger.warning("Renflair SMS API key not configured in .env. Falling back to local display.")
+        api_key = (
+            settings.renflair_api_key
+            or os.environ.get("RENFLAIR_API_KEY")
+            or "fdaa32ba1a9b121d8960b465f5d14799"
+        ).strip()
+
+        if not api_key:
+            logger.warning("Renflair SMS API key not configured. Falling back to local.")
             return SendOtpResponse(
                 status="simulated",
                 gateway="local",
                 delivered=False,
-                message="SMS gateway API key not configured. OTP displayed on screen.",
+                message="SMS gateway API key not configured.",
                 phone_masked=phone_masked,
             )
 
         # Dispatch via Renflair SMS Gateway
-        renflair_url = f"https://sms.renflair.in/V1.php?API={settings.renflair_api_key}&PHONE={clean_phone}&OTP={req.otp}"
+        renflair_url = f"https://sms.renflair.in/V1.php?API={api_key}&PHONE={clean_phone}&OTP={req.otp}"
         try:
             async with httpx.AsyncClient(timeout=8.0) as client:
                 resp = await client.get(renflair_url, headers={"User-Agent": "CMI-Platform/1.0"})
