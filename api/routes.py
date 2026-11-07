@@ -110,13 +110,32 @@ class SendOtpResponse(BaseModel):
     phone_masked: str
 
 
+class HazardDispatchSMSRequest(BaseModel):
+    phone: str = Field(..., description="10-digit Indian phone number")
+    incident_id: str = Field(..., description="Unique hazard or ticket ID")
+    eta_hours: int = Field(default=2, description="Estimated dispatch resolution time in hours")
+
+
+class RewardRechargeSMSRequest(BaseModel):
+    phone: str = Field(..., description="10-digit Indian phone number")
+    amount: str = Field(default="50-Credits", description="Reward amount or credits received")
+
+
 # ── Router Factory ─────────────────────────────────────────────
 
 def create_router(
     route_harvester,
     llm_router,
     automation_scheduler=None,
+    sms_engine=None,
 ) -> APIRouter:
+    if sms_engine is None:
+        try:
+            from engines.sms_gateway import SMSGatewayEngine
+            from config import get_settings
+            sms_engine = SMSGatewayEngine.from_settings(get_settings())
+        except Exception as _e:
+            logger.warning("Default SMSGatewayEngine initialization skipped: %s", _e)
     """
     Factory function that creates the API router with injected
     engine dependencies.
@@ -236,122 +255,82 @@ def create_router(
     @router.post(
         "/auth/send-otp",
         response_model=SendOtpResponse,
-        summary="Send real cellular SMS OTP via Twilio or Renflair Gateway",
+        summary="Send real cellular SMS OTP via Custom SMS Gateway",
     )
     async def send_sms_otp(req: SendOtpRequest):
-        """Dispatches an SMS OTP to an Indian mobile phone using Twilio or Renflair SMS Gateway."""
-        import httpx
-        import re
-        import os
-        from config import get_settings
+        """Dispatches an SMS OTP via the custom SMSGatewayEngine (Renflair V1.php)."""
+        if sms_engine:
+            res = await sms_engine.send_otp(phone=req.phone, otp=req.otp)
+            return SendOtpResponse(
+                status=res.status,
+                gateway=res.gateway,
+                delivered=res.delivered,
+                message=res.message,
+                phone_masked=res.phone_masked,
+            )
 
-        settings = get_settings()
+        import re
         clean_phone = re.sub(r"[^\d]", "", req.phone)
         if len(clean_phone) > 10 and clean_phone.startswith("91"):
             clean_phone = clean_phone[-10:]
         elif len(clean_phone) > 10:
             clean_phone = clean_phone[-10:]
-
         phone_masked = f"+91 {clean_phone[:2]}•••••{clean_phone[-3:]}" if len(clean_phone) == 10 else req.phone
-        to_phone_e164 = f"+91{clean_phone}"
-
-        # ── 1. Attempt Twilio SMS Gateway ───────────────────────
-        twilio_account_sid = (settings.twilio_account_sid or os.environ.get("TWILIO_ACCOUNT_SID") or "").strip()
-        twilio_auth_token = (settings.twilio_auth_token or os.environ.get("TWILIO_AUTH_TOKEN") or "").strip()
-        twilio_api_key_sid = (settings.twilio_api_key_sid or os.environ.get("TWILIO_API_KEY_SID") or "").strip()
-        twilio_api_secret = (settings.twilio_api_secret or os.environ.get("TWILIO_API_SECRET") or os.environ.get("TWILIO_CLIENT_SECRET") or "").strip()
-        twilio_from = (settings.twilio_phone_number or os.environ.get("TWILIO_PHONE_NUMBER") or "").strip()
-
-        # Check if Twilio has the required fields
-        can_try_twilio = bool(
-            twilio_account_sid
-            and (twilio_auth_token or (twilio_api_key_sid and twilio_api_secret))
-            and twilio_from
-        )
-
-        if can_try_twilio:
-            auth_user = twilio_api_key_sid if (twilio_api_key_sid and twilio_api_secret) else twilio_account_sid
-            auth_pass = twilio_api_secret if (twilio_api_key_sid and twilio_api_secret) else twilio_auth_token
-            twilio_url = f"https://api.twilio.com/2010-04-01/Accounts/{twilio_account_sid}/Messages.json"
-            
-            try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    resp = await client.post(
-                        twilio_url,
-                        data={
-                            "To": to_phone_e164,
-                            "From": twilio_from,
-                            "Body": f"Your CMI Singara Chennai verification OTP is: {req.otp}. Valid for 10 minutes.",
-                        },
-                        auth=(auth_user, auth_pass),
-                    )
-                    twilio_data = resp.json() if resp.status_code in [200, 201] else {}
-                    if resp.status_code in [200, 201] and twilio_data.get("sid"):
-                        logger.info("Twilio SMS successfully dispatched (SID: %s) to %s", twilio_data["sid"], phone_masked)
-                        return SendOtpResponse(
-                            status="success",
-                            gateway="twilio",
-                            delivered=True,
-                            message=f"SMS OTP delivered to {phone_masked} via Twilio.",
-                            phone_masked=phone_masked,
-                        )
-                    else:
-                        err_code = twilio_data.get("code") or resp.status_code
-                        err_msg = twilio_data.get("message") or resp.text
-                        logger.warning("Twilio SMS delivery warning [%s]: %s. Falling back to Renflair.", err_code, err_msg)
-            except Exception as tw_exc:
-                logger.error("Twilio network exception: %s. Falling back to Renflair.", tw_exc)
-
-        # ── 2. Fallback to Renflair SMS Gateway ──────────────────
-        renflair_key = (
-            settings.renflair_api_key
-            or os.environ.get("RENFLAIR_API_KEY")
-            or ""
-        ).strip()
-
-        if renflair_key:
-            renflair_url = f"https://sms.renflair.in/V1.php?API={renflair_key}&PHONE={clean_phone}&OTP={req.otp}"
-            try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    resp = await client.get(renflair_url, headers={"User-Agent": "CMI-Platform/1.0"})
-                    data = resp.json() if resp.status_code == 200 else {}
-
-                    if data.get("status") == "SUCCESS":
-                        logger.info("Renflair SMS OTP successfully dispatched to %s", phone_masked)
-                        return SendOtpResponse(
-                            status="success",
-                            gateway="renflair",
-                            delivered=True,
-                            message=f"SMS OTP successfully sent to {phone_masked} via Renflair Gateway.",
-                            phone_masked=phone_masked,
-                        )
-                    else:
-                        err_msg = data.get("message") or resp.text
-                        logger.warning("Renflair SMS Gateway warning: %s", err_msg)
-                        return SendOtpResponse(
-                            status="gateway_warning",
-                            gateway="renflair",
-                            delivered=False,
-                            message=f"{err_msg}",
-                            phone_masked=phone_masked,
-                        )
-            except Exception as rf_exc:
-                logger.error("Renflair network exception: %s", rf_exc)
-                return SendOtpResponse(
-                    status="error",
-                    gateway="renflair",
-                    delivered=False,
-                    message=f"Gateway connection error: {str(rf_exc)}",
-                    phone_masked=phone_masked,
-                )
 
         return SendOtpResponse(
             status="simulated",
             gateway="local",
             delivered=False,
-            message="No SMS gateway credentials configured.",
+            message="SMS gateway engine not configured.",
             phone_masked=phone_masked,
         )
+
+    # ── POST /api/sms/hazard-dispatch ──────────────────────────
+    @router.post("/sms/hazard-dispatch", summary="Dispatch civic hazard resolution SMS (Renflair V7)")
+    async def dispatch_hazard_sms(req: HazardDispatchSMSRequest):
+        """Dispatches civic service booking / hazard dispatch confirmation SMS (V7.php)."""
+        if not sms_engine:
+            raise HTTPException(status_code=503, detail="SMS Gateway not initialized")
+        res = await sms_engine.send_hazard_dispatch(
+            phone=req.phone,
+            incident_id=req.incident_id,
+            eta_hours=req.eta_hours,
+        )
+        return {
+            "status": res.status,
+            "gateway": res.gateway,
+            "delivered": res.delivered,
+            "message": res.message,
+            "phone_masked": res.phone_masked,
+            "raw": res.raw_response,
+        }
+
+    # ── POST /api/sms/reward-recharge ──────────────────────────
+    @router.post("/sms/reward-recharge", summary="Dispatch civic wallet credit confirmation SMS (Renflair V6)")
+    async def dispatch_reward_sms(req: RewardRechargeSMSRequest):
+        """Dispatches wallet / credits confirmation SMS (V6.php)."""
+        if not sms_engine:
+            raise HTTPException(status_code=503, detail="SMS Gateway not initialized")
+        res = await sms_engine.send_reward_confirmation(
+            phone=req.phone,
+            amount_str=req.amount,
+        )
+        return {
+            "status": res.status,
+            "gateway": res.gateway,
+            "delivered": res.delivered,
+            "message": res.message,
+            "phone_masked": res.phone_masked,
+            "raw": res.raw_response,
+        }
+
+    # ── GET /api/sms/audit ─────────────────────────────────────
+    @router.get("/sms/audit", summary="Get recent SMS Gateway dispatch audit logs")
+    async def get_sms_audit():
+        """Returns recent SMS Gateway dispatch audit entries."""
+        if not sms_engine:
+            return {"entries": []}
+        return {"entries": sms_engine.get_audit_log()}
 
     # ── GET /api/config ────────────────────────────────────────
     @router.get("/config", summary="Client configuration from environment variables")

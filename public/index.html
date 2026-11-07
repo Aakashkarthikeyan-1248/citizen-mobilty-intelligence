@@ -2234,6 +2234,33 @@
                         </table>
                     </div>
                 </div>
+
+                <div class="admin-panel">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+                        <div>
+                            <h2 style="margin-bottom:4px;">📡 Cellular SMS Gateway & Dispatch Hub</h2>
+                            <span style="font-size:0.8rem; color:var(--text-sub);">Renflair SMS Gateway Engine &middot; Active Endpoints: V1 (OTP), V7 (Service Booking/Dispatch), V6 (Wallet Credits), V3 (Order ID)</span>
+                        </div>
+                        <button class="btn btn-outline" style="font-size:0.8rem; padding:6px 12px;" onclick="loadSmsAuditLogs()">🔄 Refresh Dispatch Logs</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Template</th>
+                                    <th>Recipient</th>
+                                    <th>Gateway</th>
+                                    <th>Status</th>
+                                    <th>Message Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-sms-audit-body">
+                                <tr><td colspan="6" style="text-align:center; color:var(--text-sub); padding:16px;">No cellular messages logged yet this session.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
@@ -3776,6 +3803,24 @@
             awardCredits(10);
             showToast('Incident reported to Supabase! +10 Credits awarded.', 'success');
 
+            // Trigger Renflair V7 SMS (Civic Service Booking / Hazard Dispatch confirmation)
+            if (state.user && state.user.phone) {
+                const oid = newInc.id.replace('inc-', 'HAZ-').toUpperCase();
+                fetch('/api/sms/hazard-dispatch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phone: state.user.phone,
+                        incident_id: oid,
+                        eta_hours: 2
+                    })
+                }).then(r => r.json()).then(res => {
+                    if (res && res.delivered) {
+                        showToast(`📲 Service dispatch SMS confirmed to ${res.phone_masked}! (ID: ${oid})`, 'info');
+                    }
+                }).catch(err => console.debug('SMS dispatch notification:', err));
+            }
+
             // Reset Form & Switch
             e.target.reset();
             state.pickerPin = null;
@@ -3818,6 +3863,40 @@
                 `;
                 tbody.appendChild(tr);
             });
+
+            loadSmsAuditLogs();
+        }
+
+        async function loadSmsAuditLogs() {
+            const tbody = document.getElementById('admin-sms-audit-body');
+            if (!tbody) return;
+            try {
+                const res = await fetch('/api/sms/audit');
+                if (res.ok) {
+                    const data = await res.json();
+                    const entries = data.entries || [];
+                    if (entries.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-sub); padding:16px;">No cellular messages logged yet this session.</td></tr>';
+                        return;
+                    }
+                    tbody.innerHTML = entries.map(e => `
+                        <tr>
+                            <td style="font-family:monospace; font-size:0.75rem;">${e.timestamp}</td>
+                            <td><span style="font-weight:600; font-size:0.78rem; background:#eff6ff; color:#1d4ed8; padding:2px 8px; border-radius:12px;">${e.template}</span></td>
+                            <td style="font-family:monospace; font-weight:600;">${e.phone_masked}</td>
+                            <td><span style="text-transform:capitalize;">${e.gateway}</span></td>
+                            <td>
+                                <span style="font-size:0.75rem; font-weight:700; padding:2px 6px; border-radius:4px; ${e.delivered ? 'background:#dcfce7; color:#15803d;' : 'background:#fef3c7; color:#b45309;'}">
+                                    ${e.delivered ? '✓ DELIVERED' : (e.status === 'simulated' ? 'SIMULATED' : 'NOTICE')}
+                                </span>
+                            </td>
+                            <td style="font-size:0.8rem; color:var(--text-sub);">${e.message || '-'}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (err) {
+                console.debug('Failed to load SMS audit log:', err);
+            }
         }
 
         async function updateIncidentStatus(id, newStatus) {
@@ -4169,6 +4248,22 @@
             showToast(`🎉 Account created! Welcome, ${newUser.name} (+50 Welcome Credits)`, 'success');
             switchView('cmi-navigator');
 
+            // Trigger Renflair V6 SMS (Wallet Credit Recharge)
+            if (newUser.phone) {
+                fetch('/api/sms/reward-recharge', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phone: newUser.phone,
+                        amount: '50-Credits'
+                    })
+                }).then(r => r.json()).then(res => {
+                    if (res && res.delivered) {
+                        showToast(`📲 Welcome reward SMS sent to ${res.phone_masked}!`, 'info');
+                    }
+                }).catch(err => console.debug('Reward SMS notification:', err));
+            }
+
             if (_sb) {
                 const userMeta = JSON.stringify({ location: newUser.location, lat: newUser.lat, lng: newUser.lng });
                 try {
@@ -4518,6 +4613,7 @@
         window.autofillCurrentOtp = autofillCurrentOtp;
         window.checkPasswordStrength = checkPasswordStrength;
         window.handleSendForgotOtp = handleSendForgotOtp;
+        window.loadSmsAuditLogs = loadSmsAuditLogs;
         window.autofillForgotOtp = autofillForgotOtp;
         window.handleVerifyForgotOtp = handleVerifyForgotOtp;
         window.handleResetPassword = handleResetPassword;

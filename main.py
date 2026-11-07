@@ -43,6 +43,7 @@ from engines.text_isolation import TextIsolationEngine
 from engines.llm_router import LLMRouter
 from engines.route_harvester import RouteHarvester
 from engines.automation_scheduler import AutomationScheduler
+from engines.sms_gateway import SMSGatewayEngine
 from api.routes import create_router
 
 
@@ -91,6 +92,10 @@ def create_app() -> FastAPI:
     )
     logger.info("AutomationScheduler initialized")
 
+    # Native SMS & OTP Gateway Engine (Renflair V1/V3/V6/V7 & Twilio)
+    sms_engine = SMSGatewayEngine.from_settings(settings)
+    logger.info("SMSGatewayEngine initialized")
+
     # ── Step 4: Create FastAPI app ─────────────────────────────
     app = FastAPI(
         title="CMI — Citizen Mobility Intelligence",
@@ -109,6 +114,7 @@ def create_app() -> FastAPI:
         route_harvester=route_harvester,
         llm_router=llm_router,
         automation_scheduler=automation_scheduler,
+        sms_engine=sms_engine,
     )
     app.include_router(api_router)
 
