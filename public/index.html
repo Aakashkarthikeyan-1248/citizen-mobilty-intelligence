@@ -2649,9 +2649,22 @@
         async function loadUsersFromDb() {
             if (!_sb) return;
             try {
-                const { data } = await _sb.from('cmi_users').select('*');
-                if (data) state.users = data;
-            } catch (err) {}
+                const { data, error } = await _sb.from('cmi_users').select('*');
+                if (!error && Array.isArray(data)) {
+                    state.users = data.map(u => ({
+                        id: u.id,
+                        name: u.name,
+                        email: (u.email || '').toLowerCase().trim(),
+                        phone: u.employee_id || '',
+                        password: u.hash || u.salt || '',
+                        role: u.role || 'citizen',
+                        status: u.status || 'active',
+                        credits: 50
+                    }));
+                }
+            } catch (err) {
+                console.warn('Supabase users fetch error:', err);
+            }
         }
 
         // ══════════════════════════════════════════════════════════════
@@ -3753,7 +3766,7 @@
             }
         }
 
-        function handleCitizenLogin(e) {
+        async function handleCitizenLogin(e) {
             if (e) e.preventDefault();
             const email = (document.getElementById('login-email').value || '').trim().toLowerCase();
             const mobile = (document.getElementById('login-mobile').value || '').trim();
@@ -3764,23 +3777,55 @@
                 return;
             }
 
-            let user = (state.users || []).find(u => u.email.toLowerCase() === email);
-            if (user && user.password && user.password !== pass) {
-                showToast('Incorrect password. Please verify or click Forgot Password.', 'error');
+            // Find user in memory
+            let user = (state.users || []).find(u => u.email && u.email.toLowerCase() === email);
+
+            // If not found in memory, query live Supabase table
+            if (!user && _sb) {
+                try {
+                    const { data } = await _sb.from('cmi_users').select('*').ilike('email', email).limit(1);
+                    if (data && data.length > 0) {
+                        const u = data[0];
+                        user = {
+                            id: u.id,
+                            name: u.name,
+                            email: (u.email || '').toLowerCase().trim(),
+                            phone: u.employee_id || '',
+                            password: u.hash || u.salt || '',
+                            role: u.role || 'citizen',
+                            status: u.status || 'active',
+                            credits: 120
+                        };
+                        state.users.push(user);
+                    }
+                } catch (err) {}
+            }
+
+            // ONLY registered / old users can log in!
+            if (!user) {
+                showToast('❌ Account not found. Only registered users can log in. Please Sign Up.', 'error');
+                switchAuthMode('signup');
+                const suEmail = document.getElementById('signup-email');
+                if (suEmail) suEmail.value = email;
+                const suMobile = document.getElementById('signup-mobile');
+                if (suMobile) suMobile.value = mobile;
                 return;
             }
 
-            if (!user) {
-                user = {
-                    id: 'cit-' + Math.random().toString(36).substr(2, 7),
-                    name: email.split('@')[0],
-                    email: email,
-                    phone: mobile,
-                    password: pass,
-                    role: 'citizen',
-                    credits: 120
-                };
-                state.users.push(user);
+            // Check password
+            if (user.password && user.password !== pass) {
+                showToast('❌ Incorrect password. Please verify your password or use Forgot Password.', 'error');
+                return;
+            }
+
+            // Check registered mobile number
+            if (user.phone) {
+                const cleanUserPhone = user.phone.replace(/\D/g, '');
+                const cleanInputPhone = mobile.replace(/\D/g, '');
+                if (cleanUserPhone && cleanInputPhone && !cleanUserPhone.endsWith(cleanInputPhone.slice(-10)) && !cleanInputPhone.endsWith(cleanUserPhone.slice(-10))) {
+                    showToast('❌ Mobile number does not match your registered account.', 'error');
+                    return;
+                }
             } else {
                 user.phone = mobile;
             }
@@ -3790,6 +3835,57 @@
             closeAuthModal();
             showToast(`Welcome back, ${state.user.name}! (${state.user.credits || 120} Civic Credits)`, 'success');
             switchView('cmi-navigator');
+        }
+
+        // Live password helper to check strength and uniqueness
+        function checkPasswordStrength(val) {
+            const badge = document.getElementById('signup-password-strength');
+            if (!badge) return;
+
+            if (!val) {
+                badge.style.display = 'none';
+                return;
+            }
+
+            badge.style.display = 'block';
+
+            // Check if another user has already used this exact password
+            const isUsedByOther = (state.users || []).some(u => u.password && u.password === val);
+            if (isUsedByOther) {
+                badge.textContent = '❌ Warning: This password has already been used by another user!';
+                badge.style.color = '#ef4444';
+                return;
+            }
+
+            const commonPasswords = ['12345678', 'password', 'password1', 'password123', 'admin123', 'chennai123', 'qwerty123', 'welcome123', '123456789'];
+            if (commonPasswords.includes(val.toLowerCase())) {
+                badge.textContent = '❌ Weak: This password is too common / easily guessed!';
+                badge.style.color = '#ef4444';
+                return;
+            }
+
+            const hasLen = val.length >= 8;
+            const hasLetters = /[a-zA-Z]/.test(val);
+            const hasNumbers = /[0-9]/.test(val);
+            const hasSpecial = /[^a-zA-Z0-9]/.test(val);
+
+            let score = 0;
+            if (hasLen) score++;
+            if (val.length >= 10) score++;
+            if (hasLetters) score++;
+            if (hasNumbers) score++;
+            if (hasSpecial) score++;
+
+            if (!hasLen || !hasLetters || !hasNumbers) {
+                badge.textContent = '⚠️ Weak: Must be 8+ characters, with both letters and numbers';
+                badge.style.color = '#f59e0b';
+            } else if (score < 4) {
+                badge.textContent = '✅ Good password (secure)';
+                badge.style.color = '#10b981';
+            } else {
+                badge.textContent = '🛡️ Excellent & strong password!';
+                badge.style.color = '#059669';
+            }
         }
 
         async function handleCitizenSignup(e) {
@@ -3804,8 +3900,44 @@
                 showToast('Please fill all required fields.', 'warn');
                 return;
             }
+
+            // Email check: reject if already registered
+            const existingEmail = (state.users || []).find(u => u.email && u.email.toLowerCase() === email);
+            if (existingEmail) {
+                showToast('⚠️ An account with this email already exists. Please log in.', 'warn');
+                switchAuthMode('login');
+                const logEmail = document.getElementById('login-email');
+                if (logEmail) logEmail.value = email;
+                return;
+            }
+
+            // Passwords must match
             if (pass !== confirmPass) {
                 showToast('Passwords do not match. Please re-enter.', 'error');
+                return;
+            }
+
+            // Password length & complexity requirements
+            if (pass.length < 8) {
+                showToast('⚠️ Password must be at least 8 characters long.', 'warn');
+                return;
+            }
+            if (!/[a-zA-Z]/.test(pass) || !/[0-9]/.test(pass)) {
+                showToast('⚠️ Please choose a stronger password containing both letters and numbers.', 'warn');
+                return;
+            }
+
+            // Common password check
+            const commonPasswords = ['12345678', 'password', 'password1', 'password123', 'admin123', 'chennai123', 'qwerty123', 'welcome123', '123456789'];
+            if (commonPasswords.includes(pass.toLowerCase())) {
+                showToast('⚠️ This password is too weak or commonly used. Please choose a unique password.', 'error');
+                return;
+            }
+
+            // Check if anyone has used the same password
+            const isPasswordTaken = (state.users || []).some(u => u.password && u.password === pass);
+            if (isPasswordTaken) {
+                showToast('⚠️ Another user has already used this password. For your security, please choose a unique password.', 'error');
                 return;
             }
 
@@ -3832,8 +3964,11 @@
                     name: newUser.name,
                     email: newUser.email,
                     role: 'citizen',
-                    status: 'active'
-                }).catch(() => {});
+                    status: 'active',
+                    employee_id: newUser.phone,
+                    hash: newUser.password,
+                    salt: 'cmi'
+                }).catch(err => console.warn('Supabase save user error:', err));
             }
         }
 
@@ -3899,8 +4034,12 @@
             const newPass = document.getElementById('reset-new-password').value;
             const confirmPass = document.getElementById('reset-confirm-password').value;
 
-            if (!newPass || newPass.length < 6) {
-                showToast('Password must be at least 6 characters.', 'warn');
+            if (!newPass || newPass.length < 8) {
+                showToast('Password must be at least 8 characters long.', 'warn');
+                return;
+            }
+            if (!/[a-zA-Z]/.test(newPass) || !/[0-9]/.test(newPass)) {
+                showToast('Password must contain both letters and numbers.', 'warn');
                 return;
             }
             if (newPass !== confirmPass) {
@@ -3908,8 +4047,21 @@
                 return;
             }
 
-            const targetEmail = state.forgotOtp ? state.forgotOtp.email : 'aakashkarthikeyan1248@gmail.com';
-            let user = (state.users || []).find(u => u.email.toLowerCase() === targetEmail.toLowerCase());
+            const targetEmail = state.forgotOtp ? state.forgotOtp.email : '';
+            if (!targetEmail) {
+                showToast('Password reset session expired. Please request OTP again.', 'error');
+                switchAuthMode('forgot-1');
+                return;
+            }
+
+            // Check if password has been used by another user
+            const isTaken = (state.users || []).some(u => u.email !== targetEmail.toLowerCase() && u.password && u.password === newPass);
+            if (isTaken) {
+                showToast('⚠️ Another user has used this same password. Please choose a unique password.', 'error');
+                return;
+            }
+
+            let user = (state.users || []).find(u => u.email && u.email.toLowerCase() === targetEmail.toLowerCase());
             if (user) {
                 user.password = newPass;
             } else {
@@ -3917,12 +4069,18 @@
                     id: 'cit-' + Math.random().toString(36).substr(2, 7),
                     name: targetEmail.split('@')[0],
                     email: targetEmail,
-                    phone: state.forgotOtp ? state.forgotOtp.mobile : '+91 98401 23456',
+                    phone: state.forgotOtp ? state.forgotOtp.mobile : '',
                     password: newPass,
                     role: 'citizen',
-                    credits: 980
+                    credits: 50
                 };
                 state.users.push(user);
+            }
+
+            if (_sb) {
+                _sb.from('cmi_users').update({
+                    hash: newPass
+                }).ilike('email', targetEmail).catch(err => console.warn('Supabase pass update error:', err));
             }
 
             state.user = user;
@@ -3956,18 +4114,6 @@
         function quickLoginDemo(role) {
             if (role === 'admin') {
                 handleAdminLogin();
-            } else {
-                state.user = {
-                    id: 'cit-1',
-                    name: 'Aakash Karthikeyan',
-                    email: 'aakashkarthikeyan1248@gmail.com',
-                    phone: '+91 98401 23456',
-                    role: 'citizen',
-                    credits: 980
-                };
-                onUserLoggedIn();
-                closeAuthModal();
-                showToast(`Welcome back, ${state.user.name}! (980 Civic Credits)`, 'success');
             }
         }
 
@@ -4046,6 +4192,7 @@
         window.switchAuthMode = switchAuthMode;
         window.handleCitizenLogin = handleCitizenLogin;
         window.handleCitizenSignup = handleCitizenSignup;
+        window.checkPasswordStrength = checkPasswordStrength;
         window.handleSendForgotOtp = handleSendForgotOtp;
         window.autofillForgotOtp = autofillForgotOtp;
         window.handleVerifyForgotOtp = handleVerifyForgotOtp;
@@ -4088,11 +4235,11 @@
                     <form onsubmit="handleCitizenLogin(event)">
                         <div class="auth-form-group">
                             <label>Email Address *</label>
-                            <input type="email" id="login-email" placeholder="aakashkarthikeyan1248@gmail.com" value="" required>
+                            <input type="email" id="login-email" placeholder="name@example.com" value="" required>
                         </div>
                         <div class="auth-form-group">
                             <label>Mobile Number (Registered) *</label>
-                            <input type="tel" id="login-mobile" placeholder="+91 98401 23456" value="" required>
+                            <input type="tel" id="login-mobile" placeholder="+91 98765 43210" value="" required>
                         </div>
                         <div class="auth-form-group">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -4117,23 +4264,25 @@
                     <form onsubmit="handleCitizenSignup(event)">
                         <div class="auth-form-group">
                             <label>Full Name *</label>
-                            <input type="text" id="signup-name" placeholder="Aakash Karthikeyan" value="" required>
+                            <input type="text" id="signup-name" placeholder="Enter your full name" value="" required>
                         </div>
                         <div class="auth-form-group">
                             <label>Email Address *</label>
-                            <input type="email" id="signup-email" placeholder="citizen@chennai.org" required>
+                            <input type="email" id="signup-email" placeholder="name@example.com" required>
                         </div>
                         <div class="auth-form-group">
                             <label>Mobile Number *</label>
-                            <input type="tel" id="signup-mobile" placeholder="+91 98401 23456" required>
+                            <input type="tel" id="signup-mobile" placeholder="+91 98765 43210" required>
                         </div>
                         <div class="auth-form-group">
                             <label>Create Password *</label>
-                            <input type="password" id="signup-password" placeholder="Min 6 characters" minlength="6" required>
+                            <input type="password" id="signup-password" placeholder="Min 8 characters (letters and numbers)" minlength="8" oninput="checkPasswordStrength(this.value)" required>
+                            <div id="signup-password-hint" style="font-size:0.75rem; color:#64748b; margin-top:4px;">Requirements: At least 8 characters, containing letters and numbers.</div>
+                            <div id="signup-password-strength" style="font-size:0.76rem; margin-top:3px; font-weight:600; display:none;"></div>
                         </div>
                         <div class="auth-form-group">
                             <label>Confirm Password *</label>
-                            <input type="password" id="signup-confirm-password" placeholder="Re-enter password" minlength="6" required>
+                            <input type="password" id="signup-confirm-password" placeholder="Re-enter password" minlength="8" required>
                         </div>
                         <button type="submit" class="btn-auth-submit">Create Account & Claim 50 Credits</button>
                     </form>
@@ -4149,11 +4298,11 @@
                     <form onsubmit="handleSendForgotOtp(event)">
                         <div class="auth-form-group">
                             <label>Registered Email Address *</label>
-                            <input type="email" id="forgot-email" placeholder="aakashkarthikeyan1248@gmail.com" value="" required>
+                            <input type="email" id="forgot-email" placeholder="name@example.com" value="" required>
                         </div>
                         <div class="auth-form-group">
                             <label>Registered Mobile Number *</label>
-                            <input type="tel" id="forgot-mobile" placeholder="+91 98401 23456" value="" required>
+                            <input type="tel" id="forgot-mobile" placeholder="+91 98765 43210" value="" required>
                         </div>
                         <button type="submit" class="btn-auth-submit" style="background:#0284c7;">Send Security OTP to Mobile 📲</button>
                     </form>
@@ -4193,11 +4342,11 @@
                     <form onsubmit="handleResetPassword(event)">
                         <div class="auth-form-group">
                             <label>New Password *</label>
-                            <input type="password" id="reset-new-password" placeholder="Min 6 characters" minlength="6" required>
+                            <input type="password" id="reset-new-password" placeholder="Min 8 characters (letters and numbers)" minlength="8" required>
                         </div>
                         <div class="auth-form-group">
                             <label>Confirm New Password *</label>
-                            <input type="password" id="reset-confirm-password" placeholder="Confirm new password" minlength="6" required>
+                            <input type="password" id="reset-confirm-password" placeholder="Confirm new password" minlength="8" required>
                         </div>
                         <button type="submit" class="btn-auth-submit" style="background:#15803d;">Save New Password & Sign In 🔒</button>
                     </form>
