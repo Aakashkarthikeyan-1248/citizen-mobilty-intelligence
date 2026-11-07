@@ -2100,6 +2100,14 @@
                                 <option value="resolved">Resolved</option>
                             </select>
                         </label>
+                        <label>Range (Radius)
+                            <select id="filter-range" onchange="renderCommunityFeed()">
+                                <option value="all">All Chennai Range</option>
+                                <option value="5">Within 5 km</option>
+                                <option value="10">Within 10 km</option>
+                                <option value="15">Within 15 km</option>
+                            </select>
+                        </label>
                     </div>
                 </div>
             </div>
@@ -2549,8 +2557,25 @@
                 }
             }
 
-            // 3. Fallback active community incidents so feed is never blank
+            // 3. Fallback active community incidents so feed is never blank (LLM-detected public hazards)
             const activeSeeds = [
+                {
+                    id: 'seed-usman-flyover',
+                    title: 'Flyover Demolition & Reconstruction — Usman Road (T. Nagar)',
+                    cat: 'Roadblock',
+                    sev: 'critical',
+                    loc: 'Usman Road & Panagal Park, T. Nagar',
+                    lat: 13.0418,
+                    lng: 80.2341,
+                    source: 'ai',
+                    reporterId: 'NVIDIA NIM & Groq AI Corridor Monitor',
+                    description: 'Major flyover demolition and reconstruction connecting North and South Usman Road. Diversions active via Bazullah Road. Heavy bottleneck across corridor.',
+                    photo: null,
+                    status: 'pending',
+                    verifiedBy: [],
+                    history: [],
+                    reportedAt: Date.now() - 900000
+                },
                 {
                     id: 'seed-ayanavaram-hazard',
                     title: 'Water Main Burst & Open Cavity on Road',
@@ -2559,12 +2584,12 @@
                     loc: 'New Avadi Road near Ayanavaram Depot',
                     lat: 13.0975,
                     lng: 80.2330,
-                    source: 'citizen',
-                    reporterId: 'cit-ayanavaram01',
+                    source: 'ai',
+                    reporterId: 'Groq Llama-3 AI Corridor Monitor',
                     description: 'High-pressure metro water pipeline rupture with 3-meter open trench caution zone across roadway near Ayanavaram Bus Depot. Single-file movement.',
                     photo: null,
                     status: 'pending',
-                    verifiedBy: ['cit-10', 'cit-11'],
+                    verifiedBy: [],
                     history: [],
                     reportedAt: Date.now() - 1800000
                 },
@@ -2576,12 +2601,12 @@
                     loc: 'Kathipara Junction descending loop toward Guindy',
                     lat: 13.0075,
                     lng: 80.2030,
-                    source: 'citizen',
-                    reporterId: 'cit-mwd9idr',
-                    description: 'Overturned commercial truck has blocked the left two lanes. Traffic slowed to 5 km/h.',
+                    source: 'ai',
+                    reporterId: 'NVIDIA NIM AI Corridor Monitor',
+                    description: 'Overturned commercial truck has blocked the left two lanes on Kathipara flyover loop. Queue extending towards GST Road and Airport.',
                     photo: null,
                     status: 'pending',
-                    verifiedBy: ['cit-1', 'cit-2'],
+                    verifiedBy: [],
                     history: [],
                     reportedAt: Date.now() - 3600000
                 },
@@ -2593,29 +2618,29 @@
                     loc: 'Perambur Loco Works Underpass',
                     lat: 13.1110,
                     lng: 80.2320,
-                    source: 'citizen',
-                    reporterId: 'cit-auto88',
-                    description: 'Severe water accumulation reaching 2.5 feet under railway bridge. Two-wheelers stalled.',
+                    source: 'ai',
+                    reporterId: 'NVIDIA NIM AI Corridor Monitor',
+                    description: 'Severe water accumulation reaching 2.5 feet under railway bridge. Two-wheelers stalled; traffic redirected via Paper Mills Road.',
                     photo: null,
-                    status: 'verified',
-                    verifiedBy: ['cit-3', 'cit-4', 'cit-5'],
+                    status: 'pending',
+                    verifiedBy: [],
                     history: [],
                     reportedAt: Date.now() - 7200000
                 },
                 {
-                    id: 'seed-velachery-pothole',
-                    title: 'Severe Caved Pothole Cluster after Pipeline Works',
-                    cat: 'Pothole',
+                    id: 'seed-saidapet-bridge',
+                    title: 'Bridge Resurfacing & Heavy Equipment — Maraimalai Adigal Bridge',
+                    cat: 'Hazard',
                     sev: 'high',
-                    loc: 'Velachery 100 Feet Bypass Road near Grand Mall',
-                    lat: 12.9815,
-                    lng: 80.2210,
-                    source: 'citizen',
-                    reporterId: 'cit-rider12',
-                    description: 'Uncovered trenching left with sharp asphalt edges. High danger for two-wheelers at night.',
+                    loc: 'Maraimalai Adigal Bridge over Adyar River (Saidapet)',
+                    lat: 13.0210,
+                    lng: 80.2240,
+                    source: 'ai',
+                    reporterId: 'Groq Llama-3 AI Corridor Monitor',
+                    description: 'Active asphalt resurfacing and road milling with heavy equipment restricting vehicular movement toward Guindy.',
                     photo: null,
                     status: 'pending',
-                    verifiedBy: ['cit-1'],
+                    verifiedBy: [],
                     history: [],
                     reportedAt: Date.now() - 10800000
                 },
@@ -2623,16 +2648,16 @@
                     id: 'seed-annasalai-barricade',
                     title: 'Metro Rail Phase-II Barricade Road Constriction',
                     cat: 'Roadblock',
-                    sev: 'medium',
+                    sev: 'high',
                     loc: 'Anna Salai near Thousand Lights Metro Station',
                     lat: 13.0560,
                     lng: 80.2520,
-                    source: 'citizen',
-                    reporterId: 'cit-bus45',
+                    source: 'ai',
+                    reporterId: 'NVIDIA NIM AI Corridor Monitor',
                     description: 'Metro pillar construction barricades narrowing the 4-lane stretch into single-file crawl.',
                     photo: null,
-                    status: 'verified',
-                    verifiedBy: ['cit-6', 'cit-7', 'cit-8'],
+                    status: 'pending',
+                    verifiedBy: [],
                     history: [],
                     reportedAt: Date.now() - 14400000
                 }
@@ -3189,6 +3214,18 @@
         // ══════════════════════════════════════════════════════════════
         // COMMUNITY HAZARD MAP & INCIDENTS (View 2)
         // ══════════════════════════════════════════════════════════════
+        function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth's radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = 
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
         function initCommunityMap() {
             if (state.maps.comm) return;
 
@@ -3207,27 +3244,53 @@
 
             state.layers.commMarkers = L.layerGroup().addTo(map);
             state.maps.comm = map;
+
+            // Recalculate range and distance as map pans
+            map.on('moveend', () => {
+                renderCommunityFeed();
+            });
+
             renderCommunityFeed();
         }
 
         function renderCommunityFeed() {
-            const cat = document.getElementById('filter-cat').value;
-            const sev = document.getElementById('filter-sev').value;
-            const stat = document.getElementById('filter-status').value;
+            const cat = document.getElementById('filter-cat') ? document.getElementById('filter-cat').value : 'all';
+            const sev = document.getElementById('filter-sev') ? document.getElementById('filter-sev').value : 'all';
+            const stat = document.getElementById('filter-status') ? document.getElementById('filter-status').value : 'active';
+            const rangeFilter = document.getElementById('filter-range') ? document.getElementById('filter-range').value : 'all';
+
+            let centerLat = 13.0600;
+            let centerLng = 80.2400;
+            if (state.maps.comm) {
+                const c = state.maps.comm.getCenter();
+                centerLat = c.lat;
+                centerLng = c.lng;
+            }
 
             let filtered = state.incidents.filter(i => {
                 if (cat !== 'all' && i.cat !== cat) return false;
                 if (sev !== 'all' && i.sev !== sev) return false;
                 if (stat === 'active' && i.status === 'resolved') return false;
                 if (stat !== 'active' && stat !== 'all' && i.status !== stat) return false;
+
+                const dist = getDistanceFromLatLonInKm(centerLat, centerLng, i.lat, i.lng);
+                i._dist = dist;
+                if (rangeFilter !== 'all' && dist > parseFloat(rangeFilter)) return false;
+
                 return true;
             });
 
-            document.getElementById('feed-count').textContent = `${filtered.length} incidents`;
+            // Sort: critical/high first, then closest in range
+            const sevRank = { critical: 3, high: 2, medium: 1, low: 0 };
+            filtered.sort((a, b) => (sevRank[b.sev] || 0) - (sevRank[a.sev] || 0) || (a._dist - b._dist));
+
+            const feedCountEl = document.getElementById('feed-count');
+            if (feedCountEl) feedCountEl.textContent = `${filtered.length} public hazards in range`;
             const listEl = document.getElementById('feed-list');
+            if (!listEl) return;
             listEl.innerHTML = '';
 
-            // Render on map with rich popups, tooltips, and click-to-highlight
+            // Render on map
             if (state.layers.commMarkers) {
                 state.layers.commMarkers.clearLayers();
                 filtered.forEach(inc => {
@@ -3241,15 +3304,23 @@
                         className: 'pulsing-circle-marker'
                     }).addTo(state.layers.commMarkers);
 
+                    const sourceBadge = inc.source === 'ai' 
+                        ? '<span class="circle-popup-cat" style="background:#e0f2fe; color:#0369a1; font-weight:700;">🤖 LLM Monitored</span>'
+                        : '<span class="circle-popup-cat">👤 Citizen Report</span>';
+
+                    const confirmsCount = (inc.verifiedBy || []).length;
                     const popupContent = `
                         <div class="circle-popup-card">
                             <div class="circle-popup-head">
                                 <span class="circle-popup-badge" style="background:${color}22; color:${color};">● ${inc.sev.toUpperCase()} HAZARD</span>
-                                <span class="circle-popup-cat">${inc.cat}</span>
+                                ${sourceBadge}
                             </div>
                             <h4 class="circle-popup-title">${inc.title}</h4>
-                            <p class="circle-popup-desc">${inc.description || 'Reported by fellow citizen.'}</p>
-                            <div class="circle-popup-loc">📍 ${inc.loc || 'Chennai'}</div>
+                            <p class="circle-popup-desc">${inc.description || 'Public road hazard.'}</p>
+                            <div class="circle-popup-loc">📍 ${inc.loc || 'Chennai'} · <strong style="color:#0284c7;">${inc._dist.toFixed(1)} km in range</strong></div>
+                            <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">
+                                ${confirmsCount > 0 ? `👥 ${confirmsCount} Citizen${confirmsCount > 1 ? 's' : ''} Approved` : '⚡ Awaiting Ground-Truth Field Confirmation'}
+                            </div>
                             <div style="display:flex; gap:6px; margin-top:8px;">
                                 <button class="btn-popup-approve" onclick="confirmIncident('${inc.id}', event)">
                                     👍 Approve as Legit (+10 pts)
@@ -3262,7 +3333,7 @@
                     `;
 
                     marker.bindPopup(popupContent, { offset: [0, -8], closeButton: true });
-                    marker.bindTooltip(`<b>${inc.title}</b><br><span style="color:${color};font-weight:700;">${inc.sev.toUpperCase()}</span> · Click circle for popup details`, {
+                    marker.bindTooltip(`<b>${inc.title}</b><br><span style="color:${color};font-weight:700;">${inc.sev.toUpperCase()}</span> · ${inc._dist.toFixed(1)} km in range`, {
                         direction: 'top',
                         offset: [0, -10],
                         opacity: 0.95
@@ -3280,22 +3351,40 @@
                 li.className = 'incident-card';
                 li.id = 'incident-card-' + inc.id;
                 const confirmsCount = (inc.verifiedBy || []).length;
-                const statusTag = inc.status === 'verified' 
-                    ? '<span class="badge" style="background:#dcfce7; color:#15803d; font-weight:700;">🟢 Verified Legit</span>'
-                    : '<span class="badge" style="background:#fef3c7; color:#b45309; font-weight:700;">🟡 Community Review</span>';
+
+                let detectionTag = '';
+                if (inc.source === 'ai') {
+                    detectionTag = '<span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:700;">🤖 AI-Detected (LLM)</span>';
+                } else {
+                    detectionTag = '<span class="badge" style="background:#f1f5f9; color:#475569; font-weight:700;">👤 Citizen Report</span>';
+                }
+
+                let statusTag = '';
+                if (confirmsCount >= 2 || inc.status === 'verified') {
+                    statusTag = '<span class="badge" style="background:#dcfce7; color:#15803d; font-weight:700;">🟢 Ground Verified</span>';
+                } else if (confirmsCount === 1) {
+                    statusTag = '<span class="badge" style="background:#fef3c7; color:#b45309; font-weight:700;">🟡 1 Citizen Confirmed</span>';
+                } else {
+                    statusTag = '<span class="badge" style="background:#fef3c7; color:#b45309; font-weight:700;">🟡 Needs Field Review</span>';
+                }
 
                 li.innerHTML = `
                     <div class="card-head">
                         <div class="card-title">${inc.title}</div>
                         <span class="chip-sev chip-${inc.sev}">${inc.sev.toUpperCase()}</span>
                     </div>
-                    <div class="card-loc">📍 ${inc.loc || 'Chennai'} • ${inc.cat}</div>
+                    <div class="card-loc">📍 ${inc.loc || 'Chennai'} • ${inc.cat} • <strong style="color:#0284c7;">${inc._dist.toFixed(1)} km in range</strong></div>
                     <div style="font-size:0.78rem; color:#64748b; margin:4px 0 8px 0; line-height:1.4;">
-                        ${inc.description ? inc.description.substring(0, 95) + (inc.description.length > 95 ? '...' : '') : 'Reported by fellow citizen.'}
+                        ${inc.description ? inc.description.substring(0, 110) + (inc.description.length > 110 ? '...' : '') : 'Public road hazard.'}
                     </div>
                     <div class="card-badges" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-                        ${statusTag}
-                        <span style="font-size:0.75rem; color:#64748b; font-weight:600;">👥 ${confirmsCount} Citizens Approved</span>
+                        <div style="display:flex; gap:6px;">
+                            ${detectionTag}
+                            ${statusTag}
+                        </div>
+                        <span style="font-size:0.75rem; color:#64748b; font-weight:600;">
+                            ${confirmsCount > 0 ? `👥 ${confirmsCount} Confirmed` : '⚡ First to confirm'}
+                        </span>
                     </div>
                     <div class="card-actions-row">
                         <button class="btn-vote-legit" onclick="confirmIncident('${inc.id}', event)" title="Verify and approve this report">
@@ -3312,7 +3401,7 @@
             });
         }
 
-                function highlightIncidentCard(id) {
+        function highlightIncidentCard(id) {
             const card = document.getElementById(`incident-card-${id}`);
             if (card) {
                 card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -3330,18 +3419,27 @@
             detailView.style.display = 'flex';
 
             const photoHtml = inc.photo ? `<img src="${inc.photo}" class="detail-photo" alt="Hazard photo">` : '';
+            const sourceText = inc.source === 'ai' 
+                ? '🤖 Autonomous LLM Engine (NVIDIA NIM & Groq AI Corridor Monitor)' 
+                : '👤 Citizen Field Submission';
+            const confirmsCount = (inc.verifiedBy || []).length;
+            const distText = inc._dist ? ` · <strong>${inc._dist.toFixed(1)} km in range</strong>` : '';
 
             document.getElementById('detail-content').innerHTML = `
                 <h2 style="font-size:1.15rem; margin-bottom:4px;">${inc.title}</h2>
                 <div style="display:flex; gap:6px; margin-bottom:8px;">
-                    <span class="chip-sev chip-${inc.sev}">${inc.sev}</span>
+                    <span class="chip-sev chip-${inc.sev}">${inc.sev.toUpperCase()}</span>
+                    <span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:700;">${inc.source === 'ai' ? '🤖 LLM Monitored' : '👤 Citizen'}</span>
                     <span class="badge badge-${inc.status}">${inc.status}</span>
                 </div>
-                <p style="font-size:0.85rem; color:var(--text-sub); margin-bottom:8px;">📍 ${inc.loc} · ${inc.cat}</p>
-                <p style="font-size:0.85rem; margin-bottom:12px;">${inc.description || 'No additional details provided.'}</p>
+                <p style="font-size:0.85rem; color:var(--text-sub); margin-bottom:8px;">📍 ${inc.loc} · ${inc.cat}${distText}</p>
+                <div style="font-size:0.8rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; margin-bottom:10px;">
+                    <strong>Detection Source:</strong> ${sourceText}
+                </div>
+                <p style="font-size:0.85rem; margin-bottom:12px;">${inc.description || 'Public road hazard.'}</p>
                 ${photoHtml}
                 <div style="margin-top:12px;">
-                    <strong>Independent confirmations:</strong> ${inc.verifiedBy.length}
+                    <strong>Citizen Field Confirmations:</strong> ${confirmsCount} ${confirmsCount === 0 ? '(Awaiting initial ground confirmation)' : ''}
                 </div>
                 <button class="btn-calc" style="margin-top:14px;" onclick="confirmIncident('${inc.id}')">
                     <span>Confirm this Hazard (+10 Credits)</span>
