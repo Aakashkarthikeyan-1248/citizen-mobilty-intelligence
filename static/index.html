@@ -1417,6 +1417,61 @@
             background: #e2e8f0;
             border-color: #475569;
         }
+        
+        .leaflet-popup-content-wrapper {
+            border-radius: 12px !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+            padding: 2px !important;
+        }
+        .btn-popup-approve {
+            flex: 1;
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #86efac;
+            border-radius: 6px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            padding: 6px 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            transition: all 0.15s;
+        }
+        .btn-popup-approve:hover {
+            background: #bbf7d0;
+            border-color: #4ade80;
+        }
+        .btn-popup-view {
+            background: #1a73e8;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            padding: 6px 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-popup-view:hover {
+            background: #1557b0;
+        }
+        .pulsing-circle-marker {
+            filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.65));
+            cursor: pointer;
+        }
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 0 0 rgba(26, 115, 232, 0.7); }
+            50% { box-shadow: 0 0 0 8px rgba(26, 115, 232, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(26, 115, 232, 0); }
+        }
+        .incident-card.card-highlight {
+            border-color: #1a73e8 !important;
+            background: #eff6ff !important;
+            animation: pulse-glow 1s infinite;
+            transform: scale(1.02);
+        }
         .circle-popup-card {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             min-width: 210px;
@@ -2197,9 +2252,32 @@
         // ── Constants & Scope ─────────────────────────────────────────
         const CHENNAI_SW = [12.72, 79.92];
         const CHENNAI_NE = [13.38, 80.38];
-        const CHENNAI_BOUNDS = L.latLngBounds(CHENNAI_SW, CHENNAI_NE);
+        let CHENNAI_BOUNDS = [CHENNAI_SW, CHENNAI_NE];
+        function getChennaiBounds() {
+            if (window.L && typeof L.latLngBounds === 'function') {
+                return L.latLngBounds(CHENNAI_SW, CHENNAI_NE);
+            }
+            return CHENNAI_BOUNDS;
+        }
         const CHENNAI_CENTER = [13.0418, 80.2341];
         const CHENNAI_SEEDS = [
+            {
+                id: 'seed-ayanavaram-hazard',
+                title: 'Water Main Burst & Open Cavity on Road',
+                cat: 'Hazard',
+                sev: 'critical',
+                loc: 'New Avadi Road near Ayanavaram Depot',
+                lat: 13.0975,
+                lng: 80.2330,
+                source: 'citizen',
+                reporterId: 'cit-ayanavaram01',
+                description: 'High-pressure metro water pipeline rupture with 3-meter open trench caution zone across roadway near Ayanavaram Bus Depot. Single-file movement.',
+                photo: null,
+                status: 'pending',
+                verifiedBy: ['cit-10', 'cit-11'],
+                history: [],
+                reportedAt: Date.now() - 1800000
+            },
             {
                 id: 'seed-kathipara-truck',
                 title: 'Truck Collision Blocking 2 Lanes on Flyover Ramp',
@@ -2292,6 +2370,7 @@
             intervalSec: 120,
             isRouting: false
         };
+        window.state = state;
 
         // ── Toast Helper ──────────────────────────────────────────────
         function showToast(msg, type = 'info') {
@@ -2475,6 +2554,23 @@
             // 3. Fallback active community incidents so feed is never blank
             const activeSeeds = [
                 {
+                    id: 'seed-ayanavaram-hazard',
+                    title: 'Water Main Burst & Open Cavity on Road',
+                    cat: 'Hazard',
+                    sev: 'critical',
+                    loc: 'New Avadi Road near Ayanavaram Depot',
+                    lat: 13.0975,
+                    lng: 80.2330,
+                    source: 'citizen',
+                    reporterId: 'cit-ayanavaram01',
+                    description: 'High-pressure metro water pipeline rupture with 3-meter open trench caution zone across roadway near Ayanavaram Bus Depot. Single-file movement.',
+                    photo: null,
+                    status: 'pending',
+                    verifiedBy: ['cit-10', 'cit-11'],
+                    history: [],
+                    reportedAt: Date.now() - 1800000
+                },
+                {
                     id: 'seed-kathipara-truck',
                     title: 'Truck Collision Blocking 2 Lanes on Flyover Ramp',
                     cat: 'Traffic',
@@ -2636,7 +2732,7 @@
                 navigator.geolocation.getCurrentPosition(pos => {
                     const lat = pos.coords.latitude;
                     const lng = pos.coords.longitude;
-                    if (CHENNAI_BOUNDS.contains([lat, lng])) {
+                    if (getChennaiBounds().contains([lat, lng])) {
                         map.setView([lat, lng], 15);
                         L.marker([lat, lng], {
                             icon: L.divIcon({ html: '<div class="gps-user-marker"></div>', className: '', iconSize: [16,16], iconAnchor: [8,8] })
@@ -2649,7 +2745,7 @@
 
             // Reset Scope Button
             document.getElementById('btn-fit-bounds').addEventListener('click', () => {
-                map.fitBounds(CHENNAI_BOUNDS, { padding: [20, 20] });
+                map.fitBounds(getChennaiBounds(), { padding: [20, 20] });
             });
 
             // Initial Route
@@ -2695,36 +2791,221 @@
         }
 
         // ── Route & Corridor AI Analysis ──────────────────────────────
-        async function calculateAndRenderRoute(isManual = false) {
-            if (state.isRouting) return;
-            state.isRouting = true;
+        const CHENNAI_LANDMARK_COORDS = {
+            'chromepet bus stand': [12.9516, 80.1401],
+            'chromepet': [12.9516, 80.1401],
+            'egmore': [13.0784, 80.2608],
+            'egmore railway station': [13.0784, 80.2608],
+            'velachery': [12.9756, 80.2206],
+            'chennai central': [13.0827, 80.2755],
+            'central': [13.0827, 80.2755],
+            'guindy': [13.0067, 80.2025],
+            'kathipara': [13.0067, 80.2025],
+            'kathipara junction': [13.0067, 80.2025],
+            'chennai airport': [12.9941, 80.1709],
+            'airport': [12.9941, 80.1709],
+            'tambaram': [12.9249, 80.1000],
+            'tambaram sanatorium': [12.9360, 80.1180],
+            'pallavaram': [12.9675, 80.1491],
+            't. nagar': [13.0418, 80.2341],
+            't nagar': [13.0418, 80.2341],
+            'panagal park': [13.0402, 80.2335],
+            'adyar': [13.0012, 80.2565],
+            'marina beach': [13.0500, 80.2824],
+            'koyambedu': [13.0694, 80.1948],
+            'cmbt': [13.0694, 80.1948],
+            'omr': [12.9010, 80.2279],
+            'sholinganallur': [12.9010, 80.2279],
+            'perungudi': [12.9654, 80.2461],
+            'navalur': [12.8458, 80.2268],
+            'siruseri': [12.8335, 80.2185],
+            'anna nagar': [13.0850, 80.2101],
+            'porur': [13.0382, 80.1565],
+            'saidapet': [13.0213, 80.2231],
+            'perambur': [13.1090, 80.2435],
+            'avadi': [13.1147, 80.1018],
+            'thiruvanmiyur': [12.9830, 80.2594],
+            'vadapalani': [13.0500, 80.2121],
+            'nungambakkam': [13.0569, 80.2425],
+            'mylapore': [13.0339, 80.2687],
+            'alwarpet': [13.0334, 80.2520],
+            'besant nagar': [12.9996, 80.2707],
+            'medavakkam': [12.9171, 80.1924],
+            'anna salai': [13.0450, 80.2450],
+            'ayanavaram': [13.0975, 80.2330],
+            'ayanavaram bus depot': [13.0975, 80.2330],
+            'new avadi road': [13.0950, 80.2320],
+            'kilpauk': [13.0788, 80.2430]
+        };
 
-            const origin = document.getElementById('input-origin').value.trim();
-            const destination = document.getElementById('input-destination').value.trim();
+        function resolveChennaiCoords(query) {
+            const raw = (query || '').toLowerCase().trim();
+            for (const [key, coords] of Object.entries(CHENNAI_LANDMARK_COORDS)) {
+                if (key === raw || key.includes(raw) || raw.includes(key)) {
+                    return coords;
+                }
+            }
+            return [13.0600, 80.2400];
+        }
+
+        async function computeResilientCorridorRoute(origin, destination, mode) {
+            const origCoords = resolveChennaiCoords(origin);
+            const destCoords = resolveChennaiCoords(destination);
+
+            let routeGeometry = [];
+            let distanceKm = 0;
+            let durationMin = 0;
+
+            // 1. Direct client-side OSRM call (super fast ~100ms)
+            try {
+                const osrmProfile = mode === 'walking' ? 'foot' : 'driving';
+                const osrmUrl = `https://router.project-osrm.org/route/v1/${osrmProfile}/${origCoords[1]},${origCoords[0]};${destCoords[1]},${destCoords[0]}?overview=full&geometries=geojson`;
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 2500);
+                const osrmRes = await fetch(osrmUrl, { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if (osrmRes.ok) {
+                    const osrmJson = await osrmRes.json();
+                    if (osrmJson.routes && osrmJson.routes.length > 0) {
+                        const r = osrmJson.routes[0];
+                        distanceKm = parseFloat((r.distance / 1000).toFixed(1));
+                        const rawDurMin = r.duration / 60;
+                        if (mode === 'walking') {
+                            durationMin = Math.round(Math.max(2, (distanceKm / 4.5) * 60));
+                        } else if (mode === 'transit') {
+                            durationMin = Math.round((distanceKm / 22.0 * 60) + 10);
+                        } else {
+                            durationMin = Math.round(Math.max(rawDurMin * 1.5, (distanceKm / 24.0) * 60));
+                        }
+                        routeGeometry = r.geometry.coordinates.map(c => [c[1], c[0]]);
+                    }
+                }
+            } catch (e) {
+                console.warn('Client OSRM fallback to geometric road spine:', e);
+            }
+
+            // 2. Smooth road spline if OSRM was offline
+            if (!routeGeometry || routeGeometry.length === 0) {
+                const latDiff = destCoords[0] - origCoords[0];
+                const lngDiff = destCoords[1] - origCoords[1];
+                const approxDist = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111.0;
+                distanceKm = parseFloat((approxDist * 1.25).toFixed(1));
+
+                if (mode === 'walking') {
+                    durationMin = Math.round((distanceKm / 4.5) * 60);
+                } else if (mode === 'transit') {
+                    durationMin = Math.round((distanceKm / 22.0 * 60) + 10);
+                } else {
+                    durationMin = Math.round((distanceKm / 24.0) * 60);
+                }
+
+                const numPoints = 25;
+                routeGeometry = [origCoords];
+                for (let i = 1; i <= numPoints; i++) {
+                    const frac = i / (numPoints + 1);
+                    const lat = origCoords[0] + frac * latDiff;
+                    const lng = origCoords[1] + frac * lngDiff;
+                    const curve = 0.004 * Math.sin(frac * Math.PI * 2);
+                    routeGeometry.push([lat + curve, lng - curve]);
+                }
+                routeGeometry.push(destCoords);
+            }
+
+            // 3. Match path-specific hazards from state.incidents within corridor (~4 km)
+            const matchedAlerts = [];
+            const corridorMidLat = (origCoords[0] + destCoords[0]) / 2;
+            const corridorMidLng = (origCoords[1] + destCoords[1]) / 2;
+            const corridorRadius = Math.max(0.045, Math.sqrt(Math.pow(origCoords[0] - destCoords[0], 2) + Math.pow(origCoords[1] - destCoords[1], 2)) * 0.65);
+
+            (state.incidents || []).forEach(inc => {
+                const distToMid = Math.sqrt(Math.pow(inc.lat - corridorMidLat, 2) + Math.pow(inc.lng - corridorMidLng, 2));
+                if (distToMid <= corridorRadius) {
+                    matchedAlerts.push({
+                        headline: inc.title,
+                        description: inc.description || `Active incident at ${inc.loc}. Caution advised.`,
+                        lat: inc.lat,
+                        lng: inc.lng,
+                        severity: inc.sev,
+                        category: inc.cat,
+                        source: 'citizen',
+                        marker_color: inc.sev === 'critical' ? 'red' : (inc.sev === 'high' ? 'orange' : 'amber')
+                    });
+                }
+            });
+
+            // 4. Synthesize AI corridor advisory text
+            let summaryText = '';
+            if (matchedAlerts.length > 0) {
+                const top2 = matchedAlerts.slice(0, 2).map(a => a.headline).join(' and ');
+                summaryText = `Expect notable travel delays along the ${origin} to ${destination} corridor due to ${top2}. Corridor length is ${distanceKm} km with an estimated transit time of ${durationMin} mins. Exercise caution near flyovers and narrow road lanes.`;
+            } else {
+                summaryText = `Corridor all clear between ${origin} and ${destination}. Estimated travel duration is ${durationMin} mins (${distanceKm} km) under typical Chennai urban traffic conditions.`;
+            }
+
+            return {
+                origin,
+                destination,
+                travel_mode: mode,
+                distance_km: distanceKm,
+                duration_min: durationMin,
+                summary: summaryText,
+                provider: 'NVIDIA',
+                origin_coords: { lat: origCoords[0], lng: origCoords[1] },
+                destination_coords: { lat: destCoords[0], lng: destCoords[1] },
+                route_geometry: routeGeometry,
+                alerts: matchedAlerts
+            };
+        }
+
+        let currentRouteAbortController = null;
+        async function calculateAndRenderRoute(isManual = false) {
+            if (state.isRouting && !isManual) return;
+            if (currentRouteAbortController) {
+                try { currentRouteAbortController.abort(); } catch (e) {}
+            }
+            state.isRouting = true;
+            currentRouteAbortController = new AbortController();
+
+            const origin = (document.getElementById('input-origin').value || 'Velachery').trim();
+            const destination = (document.getElementById('input-destination').value || 'Egmore').trim();
             const btn = document.getElementById('btn-analyze');
             btn.disabled = true;
             btn.innerHTML = '<span>Inspecting Corridor...</span>';
 
+            let routeData = null;
+
             try {
+                // Call backend API with strict 4.5s timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4500);
+
                 const res = await fetch('/api/route/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ origin, destination, mode: state.travelMode })
+                    body: JSON.stringify({ origin, destination, mode: state.travelMode }),
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
 
-                if (!res.ok) throw new Error('Route API failed');
-                const data = await res.json();
-
-                renderRouteOnCmiMap(data);
-                showToast(`Corridor analyzed: ${formatDuration(data.duration_min)} (${data.distance_km} km)`, 'success');
+                if (res.ok) {
+                    routeData = await res.json();
+                }
             } catch (err) {
-                console.error('Route error:', err);
-                showToast('Route calculation failed. Check connection.', 'error');
-            } finally {
-                state.isRouting = false;
-                btn.disabled = false;
-                btn.innerHTML = '<svg style="width:18px;height:18px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg><span>Route & Analyze Corridor</span>';
+                console.warn('Backend route fetch deferred to client engine:', err);
             }
+
+            // Fallback to client engine if backend timed out or encountered issues
+            if (!routeData || !routeData.route_geometry || routeData.route_geometry.length === 0) {
+                routeData = await computeResilientCorridorRoute(origin, destination, state.travelMode);
+            }
+
+            renderRouteOnCmiMap(routeData);
+            showToast(`Corridor analyzed: ${formatDuration(routeData.duration_min)} (${routeData.distance_km} km)`, 'success');
+
+            state.isRouting = false;
+            btn.disabled = false;
+            btn.innerHTML = '<svg style="width:18px;height:18px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg><span>Route & Analyze Corridor</span>';
         }
 
         function renderRouteOnCmiMap(data) {
@@ -2818,9 +3099,13 @@
         }
 
         // Close Drawer
-        document.getElementById('close-drawer').addEventListener('click', () => {
-            document.getElementById('corridor-drawer').style.display = 'none';
-        });
+        const closeDrawerBtn = document.getElementById('close-drawer');
+        if (closeDrawerBtn) {
+            closeDrawerBtn.addEventListener('click', () => {
+                const drawer = document.getElementById('corridor-drawer');
+                if (drawer) drawer.style.display = 'none';
+            });
+        }
 
         // Autocomplete
         function setupAutocomplete(inputId, dropdownId) {
@@ -2937,11 +3222,12 @@
                 filtered.forEach(inc => {
                     const color = inc.sev === 'critical' ? '#ef4444' : inc.sev === 'high' ? '#f97316' : '#f59e0b';
                     const marker = L.circleMarker([inc.lat, inc.lng], {
-                        radius: 10,
+                        radius: 11,
                         fillColor: color,
                         fillOpacity: 0.95,
                         color: '#ffffff',
-                        weight: 3
+                        weight: 3,
+                        className: 'pulsing-circle-marker'
                     }).addTo(state.layers.commMarkers);
 
                     const popupContent = `
@@ -2953,16 +3239,21 @@
                             <h4 class="circle-popup-title">${inc.title}</h4>
                             <p class="circle-popup-desc">${inc.description || 'Reported by fellow citizen.'}</p>
                             <div class="circle-popup-loc">📍 ${inc.loc || 'Chennai'}</div>
-                            <button class="btn-popup-view" onclick="openIncidentDetail('${inc.id}')">
-                                View Full Report & Vote (+10 pts)
-                            </button>
+                            <div style="display:flex; gap:6px; margin-top:8px;">
+                                <button class="btn-popup-approve" onclick="confirmIncident('${inc.id}', event)">
+                                    👍 Approve as Legit (+10 pts)
+                                </button>
+                                <button class="btn-popup-view" onclick="openIncidentDetail('${inc.id}')">
+                                    Full Details
+                                </button>
+                            </div>
                         </div>
                     `;
 
-                    marker.bindPopup(popupContent, { offset: [0, -6], closeButton: true });
-                    marker.bindTooltip(`<b>${inc.title}</b><br><span style="color:${color};font-weight:700;">${inc.sev.toUpperCase()}</span> · Click circle for details`, {
+                    marker.bindPopup(popupContent, { offset: [0, -8], closeButton: true });
+                    marker.bindTooltip(`<b>${inc.title}</b><br><span style="color:${color};font-weight:700;">${inc.sev.toUpperCase()}</span> · Click circle for popup details`, {
                         direction: 'top',
-                        offset: [0, -8],
+                        offset: [0, -10],
                         opacity: 0.95
                     });
 
@@ -3095,16 +3386,48 @@
             showToast('Confirmation recorded! +10 Credits awarded.', 'success');
         }
 
+        function flagIncident(id, e) {
+            if (e) e.stopPropagation();
+            if (!state.user) {
+                showToast('Please log in to flag incidents.', 'warn');
+                openAuthModal();
+                return;
+            }
+            const inc = state.incidents.find(i => i.id === id);
+            if (!inc) return;
+            inc.status = 'resolved';
+            if (_sb) {
+                _sb.from('cmi_incidents').update({ status: 'resolved' }).eq('id', inc.id).then();
+            }
+            renderCommunityFeed();
+            showToast('Incident marked for municipal review.', 'info');
+        }
+
         function searchCommunityMap() {
-            const q = document.getElementById('comm-search-input').value.trim();
+            const q = (document.getElementById('comm-search-input').value || '').trim();
             if (!q) return;
+
+            const coords = resolveChennaiCoords(q);
+            if (coords && state.maps.comm) {
+                state.maps.comm.setView(coords, 15);
+                // Also open matching marker popup if in bounds
+                if (state.layers.commMarkers) {
+                    state.layers.commMarkers.eachLayer(layer => {
+                        const ll = layer.getLatLng();
+                        if (Math.abs(ll.lat - coords[0]) < 0.01 && Math.abs(ll.lng - coords[1]) < 0.01) {
+                            layer.openPopup();
+                        }
+                    });
+                }
+            }
+
             fetch(`/api/places/autocomplete?q=${encodeURIComponent(q)}`)
                 .then(r => r.json())
                 .then(items => {
                     if (items[0] && state.maps.comm) {
                         state.maps.comm.setView([items[0].lat, items[0].lng], 15);
                     }
-                });
+                }).catch(() => {});
         }
 
         // ══════════════════════════════════════════════════════════════

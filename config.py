@@ -91,7 +91,7 @@ class Settings(BaseSettings):
 
     # ── LLM Defaults ─────────────────────────────────────────
     llm_timeout_seconds: float = Field(
-        default=30.0,
+        default=4.5,
         description="Per-provider HTTP timeout before fallback",
     )
     llm_max_retries: int = Field(

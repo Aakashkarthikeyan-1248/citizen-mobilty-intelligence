@@ -45,7 +45,7 @@ class LLMProviderConfig:
     base_url: str
     api_key: str
     model: str
-    timeout: float = 30.0
+    timeout: float = 4.5
     max_retries: int = 1
 
     @property
