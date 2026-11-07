@@ -88,6 +88,32 @@ class Settings(BaseSettings):
         description="Twilio provisioned sending phone number (e.g. +1...)",
     )
 
+    # ── Email & SMTP Gateway ──────────────────────────────────
+    smtp_host: str = Field(
+        default="smtp.gmail.com",
+        description="SMTP server hostname (e.g. smtp.gmail.com, smtp.sendgrid.net)",
+    )
+    smtp_port: int = Field(
+        default=587,
+        description="SMTP server port (587 for TLS, 465 for SSL)",
+    )
+    smtp_user: str = Field(
+        default="",
+        description="SMTP authentication username / sender email address",
+    )
+    smtp_password: str = Field(
+        default="",
+        description="SMTP authentication password / Gmail App Password",
+    )
+    smtp_from_email: str = Field(
+        default="",
+        description="Sender email address displayed in From header",
+    )
+    smtp_from_name: str = Field(
+        default="CMI Singara Chennai",
+        description="Sender display name",
+    )
+
     # ── Geolocation ───────────────────────────────────────────
     google_maps_api_key: str = Field(
         default="",

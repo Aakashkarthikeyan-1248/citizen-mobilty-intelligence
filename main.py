@@ -44,6 +44,7 @@ from engines.llm_router import LLMRouter
 from engines.route_harvester import RouteHarvester
 from engines.automation_scheduler import AutomationScheduler
 from engines.sms_gateway import SMSGatewayEngine
+from engines.email_gateway import EmailGatewayEngine
 from api.routes import create_router
 
 
@@ -96,6 +97,10 @@ def create_app() -> FastAPI:
     sms_engine = SMSGatewayEngine.from_settings(settings)
     logger.info("SMSGatewayEngine initialized")
 
+    # Native Email Gateway Engine (SMTP / Gmail / Brevo / Outlook)
+    email_engine = EmailGatewayEngine.from_settings(settings)
+    logger.info("EmailGatewayEngine initialized")
+
     # ── Step 4: Create FastAPI app ─────────────────────────────
     app = FastAPI(
         title="CMI — Citizen Mobility Intelligence",
@@ -115,6 +120,7 @@ def create_app() -> FastAPI:
         llm_router=llm_router,
         automation_scheduler=automation_scheduler,
         sms_engine=sms_engine,
+        email_engine=email_engine,
     )
     app.include_router(api_router)
 

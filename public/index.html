@@ -4321,6 +4321,8 @@
 
             const targetMobileEl = document.getElementById('otp-target-mobile');
             if (targetMobileEl) targetMobileEl.textContent = mobile;
+            const targetEmailEl = document.getElementById('otp-target-email');
+            if (targetEmailEl) targetEmailEl.textContent = email;
             const inputEl = document.getElementById('forgot-otp-input');
             if (inputEl) {
                 inputEl.value = '';
@@ -4328,7 +4330,7 @@
             }
 
             // Dispatch real SMS via backend API (Renflair Gateway protected in .env)
-            showToast('📡 Connecting to Renflair SMS gateway...', 'info');
+            showToast('📡 Dispathing code to mobile & email...', 'info');
             let smsDelivered = false;
             try {
                 const resp = await fetch('/api/auth/send-otp', {
@@ -4346,20 +4348,38 @@
                 console.warn('Backend SMS endpoint unavailable:', err);
             }
 
+            // Dispatch Email OTP as well
+            let emailDelivered = false;
+            try {
+                const emailResp = await fetch('/api/auth/send-email-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, otp: otpCode, name: user.name || 'Citizen' })
+                });
+                if (emailResp.ok) {
+                    const emailData = await emailResp.json();
+                    if (emailData.delivered) emailDelivered = true;
+                }
+            } catch (err) {
+                console.debug('Backend email OTP error:', err);
+            }
+
             const statusTitleEl = document.getElementById('otp-status-title');
             const statusNoticeEl = document.getElementById('otp-status-notice');
             const emergencyWrapEl = document.getElementById('otp-emergency-wrap');
             const emergencyCodeEl = document.getElementById('emergency-code-display');
 
-            if (smsDelivered) {
-                if (statusTitleEl) statusTitleEl.innerHTML = '📲 <strong>SMS Delivered to Your Phone!</strong>';
-                if (statusNoticeEl) statusNoticeEl.innerHTML = `A 6-digit verification code has been delivered via SMS to your mobile phone <strong>${mobile}</strong>. Please check your SMS messages.`;
+            if (smsDelivered || emailDelivered) {
+                if (statusTitleEl) statusTitleEl.innerHTML = '📲 📧 <strong>Verification Code Delivered!</strong>';
+                if (statusNoticeEl) {
+                    statusNoticeEl.innerHTML = `A 6-digit verification code has been dispatched to your mobile <strong>${mobile}</strong> and email <strong>${email}</strong>. Please check your messages.`;
+                }
                 if (emergencyWrapEl) emergencyWrapEl.style.display = 'none';
-                showToast(`📲 Real SMS delivered to ${mobile}!`, 'success');
+                showToast(`📲 Code delivered to ${mobile} & ${email}!`, 'success');
             } else {
                 if (statusTitleEl) statusTitleEl.innerHTML = '📲 <strong>Security Verification Code</strong>';
                 if (statusNoticeEl) {
-                    statusNoticeEl.innerHTML = `A 6-digit verification code has been generated for your registered mobile number <strong>${mobile}</strong>.`;
+                    statusNoticeEl.innerHTML = `A 6-digit verification code has been generated for mobile <strong>${mobile}</strong> and email <strong>${email}</strong>.`;
                 }
                 if (emergencyWrapEl) {
                     emergencyWrapEl.style.display = 'block';
@@ -4370,6 +4390,7 @@
 
             switchAuthMode('forgot-2');
             startResendCooldown();
+            startEmailResendCooldown();
         }
 
         let _resendTimer = null;
@@ -4379,17 +4400,86 @@
             if (!btn) return;
             btn.style.pointerEvents = 'none';
             btn.style.color = '#94a3b8';
-            btn.textContent = `Resend OTP (${countdown}s)`;
+            btn.textContent = `Resend SMS (${countdown}s)`;
             clearInterval(_resendTimer);
             _resendTimer = setInterval(() => {
                 countdown--;
                 if (countdown <= 0) {
                     clearInterval(_resendTimer);
                     btn.style.pointerEvents = 'auto';
-                    btn.style.color = '#1a73e8';
-                    btn.textContent = 'Resend SMS OTP';
+                    btn.style.color = '#0284c7';
+                    btn.textContent = '📲 Resend SMS';
                 } else {
-                    btn.textContent = `Resend OTP (${countdown}s)`;
+                    btn.textContent = `Resend SMS (${countdown}s)`;
+                }
+            }, 1000);
+        }
+
+        let _emailResendTimer = null;
+        async function handleResendEmailOtp(e) {
+            if (e) e.preventDefault();
+            if (!state.forgotOtp || !state.forgotOtp.email || !state.forgotOtp.code) {
+                showToast('Session expired. Please request a new verification code.', 'error');
+                switchAuthMode('forgot-1');
+                return;
+            }
+
+            const email = state.forgotOtp.email;
+            const otp = state.forgotOtp.code;
+            showToast(`📧 Dispatching verification code to ${email}...`, 'info');
+
+            let emailDelivered = false;
+            let message = '';
+            try {
+                const resp = await fetch('/api/auth/send-email-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, otp: otp })
+                });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    emailDelivered = data.delivered;
+                    message = data.message;
+                }
+            } catch (err) {
+                console.warn('Email dispatch endpoint error:', err);
+            }
+
+            // Also trigger Supabase Auth reset password email if Supabase is active
+            if (_sb && _sb.auth && _sb.auth.resetPasswordForEmail) {
+                try {
+                    await _sb.auth.resetPasswordForEmail(email);
+                } catch (sbErr) {
+                    console.debug('Supabase reset trigger:', sbErr);
+                }
+            }
+
+            if (emailDelivered) {
+                showToast(`📧 Verification code delivered to ${email}! Check your inbox.`, 'success');
+            } else {
+                showToast(`📧 Email dispatch: ${message || 'Code sent to email queue'}`, 'info');
+            }
+
+            startEmailResendCooldown();
+        }
+
+        function startEmailResendCooldown() {
+            let countdown = 30;
+            const btn = document.getElementById('btn-resend-email');
+            if (!btn) return;
+            btn.style.pointerEvents = 'none';
+            btn.style.color = '#94a3b8';
+            btn.textContent = `Resend Email (${countdown}s)`;
+            clearInterval(_emailResendTimer);
+            _emailResendTimer = setInterval(() => {
+                countdown--;
+                if (countdown <= 0) {
+                    clearInterval(_emailResendTimer);
+                    btn.style.pointerEvents = 'auto';
+                    btn.style.color = '#16a34a';
+                    btn.textContent = '📧 Resend Email';
+                } else {
+                    btn.textContent = `Resend Email (${countdown}s)`;
                 }
             }, 1000);
         }
@@ -4613,6 +4703,7 @@
         window.autofillCurrentOtp = autofillCurrentOtp;
         window.checkPasswordStrength = checkPasswordStrength;
         window.handleSendForgotOtp = handleSendForgotOtp;
+        window.handleResendEmailOtp = handleResendEmailOtp;
         window.loadSmsAuditLogs = loadSmsAuditLogs;
         window.autofillForgotOtp = autofillForgotOtp;
         window.handleVerifyForgotOtp = handleVerifyForgotOtp;
@@ -4774,7 +4865,7 @@
                             📲 Security Verification
                         </div>
                         <div id="otp-status-notice" style="font-size:0.84rem; line-height:1.5; color:#475569;">
-                            A 6-digit verification code has been generated for your registered mobile number <strong id="otp-target-mobile">+91 98401 23456</strong>.
+                            A 6-digit verification code has been dispatched to mobile <strong id="otp-target-mobile">+91 98401 23456</strong> and email <strong id="otp-target-email">user@example.com</strong>.
                         </div>
                         <div id="otp-emergency-wrap" style="display:none; margin-top:10px; padding:10px 12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;">
                             <div style="font-size:0.82rem; color:#1e40af; font-weight:600; margin-bottom:6px;">
@@ -4795,10 +4886,16 @@
                         </div>
                         <button type="submit" class="btn-auth-submit" style="background:#16a34a; font-weight:700; padding:11px;">Verify & Continue 🔒</button>
                     </form>
-                    <div style="margin-top:14px; font-size:0.84rem; display:flex; justify-content:space-between; align-items:center;">
-                        <span id="resend-timer-wrap">
-                            <a href="javascript:void(0)" id="btn-resend-otp" onclick="handleSendForgotOtp(event)" style="color:#1a73e8; font-weight:600; text-decoration:none;">Resend OTP</a>
-                        </span>
+                    <div style="margin-top:14px; font-size:0.84rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <span id="resend-timer-wrap">
+                                <a href="javascript:void(0)" id="btn-resend-otp" onclick="handleSendForgotOtp(event)" style="color:#0284c7; font-weight:600; text-decoration:none;">📲 Resend SMS</a>
+                            </span>
+                            <span style="color:#cbd5e1;">|</span>
+                            <span id="resend-email-timer-wrap">
+                                <a href="javascript:void(0)" id="btn-resend-email" onclick="handleResendEmailOtp(event)" style="color:#16a34a; font-weight:600; text-decoration:none;">📧 Resend Email</a>
+                            </span>
+                        </div>
                         <a href="javascript:void(0)" onclick="switchAuthMode('login')" style="color:#64748b; font-weight:600; text-decoration:none;">Cancel</a>
                     </div>
                 </div>

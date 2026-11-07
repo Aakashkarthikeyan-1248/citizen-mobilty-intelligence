@@ -7,5 +7,6 @@ from .text_isolation import TextIsolationEngine
 from .llm_router import LLMRouter
 from .route_harvester import RouteHarvester
 from .sms_gateway import SMSGatewayEngine
+from .email_gateway import EmailGatewayEngine
 
-__all__ = ["TextIsolationEngine", "LLMRouter", "RouteHarvester", "SMSGatewayEngine"]
+__all__ = ["TextIsolationEngine", "LLMRouter", "RouteHarvester", "SMSGatewayEngine", "EmailGatewayEngine"]

@@ -121,6 +121,20 @@ class RewardRechargeSMSRequest(BaseModel):
     amount: str = Field(default="50-Credits", description="Reward amount or credits received")
 
 
+class SendEmailOtpRequest(BaseModel):
+    email: str = Field(..., description="Recipient email address")
+    otp: str = Field(..., min_length=4, max_length=8, description="OTP code")
+    name: Optional[str] = Field(default="Citizen", description="Citizen name")
+
+
+class SendEmailOtpResponse(BaseModel):
+    status: str
+    gateway: str
+    delivered: bool
+    message: str
+    email_masked: str
+
+
 # ── Router Factory ─────────────────────────────────────────────
 
 def create_router(
@@ -128,6 +142,7 @@ def create_router(
     llm_router,
     automation_scheduler=None,
     sms_engine=None,
+    email_engine=None,
 ) -> APIRouter:
     if sms_engine is None:
         try:
@@ -136,6 +151,14 @@ def create_router(
             sms_engine = SMSGatewayEngine.from_settings(get_settings())
         except Exception as _e:
             logger.warning("Default SMSGatewayEngine initialization skipped: %s", _e)
+
+    if email_engine is None:
+        try:
+            from engines.email_gateway import EmailGatewayEngine
+            from config import get_settings
+            email_engine = EmailGatewayEngine.from_settings(get_settings())
+        except Exception as _e:
+            logger.warning("Default EmailGatewayEngine initialization skipped: %s", _e)
     """
     Factory function that creates the API router with injected
     engine dependencies.
@@ -285,6 +308,36 @@ def create_router(
             phone_masked=phone_masked,
         )
 
+    # ── POST /api/auth/send-email-otp ──────────────────────────
+    @router.post(
+        "/auth/send-email-otp",
+        response_model=SendEmailOtpResponse,
+        summary="Send 6-digit verification code via Email (SMTP)",
+    )
+    async def send_email_otp(req: SendEmailOtpRequest):
+        """Dispatches an OTP verification code directly to citizen's email address."""
+        if email_engine:
+            res = await email_engine.send_otp_email(
+                to_email=req.email,
+                otp=req.otp,
+                citizen_name=req.name or "Citizen",
+            )
+            return SendEmailOtpResponse(
+                status=res.status,
+                gateway=res.gateway,
+                delivered=res.delivered,
+                message=res.message,
+                email_masked=res.email_masked,
+            )
+
+        return SendEmailOtpResponse(
+            status="unconfigured",
+            gateway="local",
+            delivered=False,
+            message="Email gateway engine not configured.",
+            email_masked=req.email,
+        )
+
     # ── POST /api/sms/hazard-dispatch ──────────────────────────
     @router.post("/sms/hazard-dispatch", summary="Dispatch civic hazard resolution SMS (Renflair V7)")
     async def dispatch_hazard_sms(req: HazardDispatchSMSRequest):
@@ -342,6 +395,7 @@ def create_router(
             "supabase_url": settings.supabase_url,
             "supabase_key": settings.supabase_key,
             "has_sms_gateway": bool(settings.renflair_api_key),
+            "has_smtp_email": bool(settings.smtp_user and settings.smtp_password),
             "app_env": settings.app_env,
             "version": "0.2.0",
         }
