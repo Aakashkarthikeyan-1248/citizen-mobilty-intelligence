@@ -236,10 +236,10 @@ def create_router(
     @router.post(
         "/auth/send-otp",
         response_model=SendOtpResponse,
-        summary="Send real cellular SMS OTP via Renflair Gateway",
+        summary="Send real cellular SMS OTP via Twilio or Renflair Gateway",
     )
     async def send_sms_otp(req: SendOtpRequest):
-        """Dispatches an SMS OTP to an Indian mobile phone using the Renflair SMS Gateway."""
+        """Dispatches an SMS OTP to an Indian mobile phone using Twilio or Renflair SMS Gateway."""
         import httpx
         import re
         import os
@@ -253,58 +253,105 @@ def create_router(
             clean_phone = clean_phone[-10:]
 
         phone_masked = f"+91 {clean_phone[:2]}•••••{clean_phone[-3:]}" if len(clean_phone) == 10 else req.phone
+        to_phone_e164 = f"+91{clean_phone}"
 
-        api_key = (
+        # ── 1. Attempt Twilio SMS Gateway ───────────────────────
+        twilio_account_sid = (settings.twilio_account_sid or os.environ.get("TWILIO_ACCOUNT_SID") or "").strip()
+        twilio_auth_token = (settings.twilio_auth_token or os.environ.get("TWILIO_AUTH_TOKEN") or "").strip()
+        twilio_api_key_sid = (settings.twilio_api_key_sid or os.environ.get("TWILIO_API_KEY_SID") or "").strip()
+        twilio_api_secret = (settings.twilio_api_secret or os.environ.get("TWILIO_API_SECRET") or os.environ.get("TWILIO_CLIENT_SECRET") or "").strip()
+        twilio_from = (settings.twilio_phone_number or os.environ.get("TWILIO_PHONE_NUMBER") or "").strip()
+
+        # Check if Twilio has the required fields
+        can_try_twilio = bool(
+            twilio_account_sid
+            and (twilio_auth_token or (twilio_api_key_sid and twilio_api_secret))
+            and twilio_from
+        )
+
+        if can_try_twilio:
+            auth_user = twilio_api_key_sid if (twilio_api_key_sid and twilio_api_secret) else twilio_account_sid
+            auth_pass = twilio_api_secret if (twilio_api_key_sid and twilio_api_secret) else twilio_auth_token
+            twilio_url = f"https://api.twilio.com/2010-04-01/Accounts/{twilio_account_sid}/Messages.json"
+            
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.post(
+                        twilio_url,
+                        data={
+                            "To": to_phone_e164,
+                            "From": twilio_from,
+                            "Body": f"Your CMI Singara Chennai verification OTP is: {req.otp}. Valid for 10 minutes.",
+                        },
+                        auth=(auth_user, auth_pass),
+                    )
+                    twilio_data = resp.json() if resp.status_code in [200, 201] else {}
+                    if resp.status_code in [200, 201] and twilio_data.get("sid"):
+                        logger.info("Twilio SMS successfully dispatched (SID: %s) to %s", twilio_data["sid"], phone_masked)
+                        return SendOtpResponse(
+                            status="success",
+                            gateway="twilio",
+                            delivered=True,
+                            message=f"SMS OTP delivered to {phone_masked} via Twilio.",
+                            phone_masked=phone_masked,
+                        )
+                    else:
+                        err_code = twilio_data.get("code") or resp.status_code
+                        err_msg = twilio_data.get("message") or resp.text
+                        logger.warning("Twilio SMS delivery warning [%s]: %s. Falling back to Renflair.", err_code, err_msg)
+            except Exception as tw_exc:
+                logger.error("Twilio network exception: %s. Falling back to Renflair.", tw_exc)
+
+        # ── 2. Fallback to Renflair SMS Gateway ──────────────────
+        renflair_key = (
             settings.renflair_api_key
             or os.environ.get("RENFLAIR_API_KEY")
-            or "fdaa32ba1a9b121d8960b465f5d14799"
+            or ""
         ).strip()
 
-        if not api_key:
-            logger.warning("Renflair SMS API key not configured. Falling back to local.")
-            return SendOtpResponse(
-                status="simulated",
-                gateway="local",
-                delivered=False,
-                message="SMS gateway API key not configured.",
-                phone_masked=phone_masked,
-            )
+        if renflair_key:
+            renflair_url = f"https://sms.renflair.in/V1.php?API={renflair_key}&PHONE={clean_phone}&OTP={req.otp}"
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.get(renflair_url, headers={"User-Agent": "CMI-Platform/1.0"})
+                    data = resp.json() if resp.status_code == 200 else {}
 
-        # Dispatch via Renflair SMS Gateway
-        renflair_url = f"https://sms.renflair.in/V1.php?API={api_key}&PHONE={clean_phone}&OTP={req.otp}"
-        try:
-            async with httpx.AsyncClient(timeout=8.0) as client:
-                resp = await client.get(renflair_url, headers={"User-Agent": "CMI-Platform/1.0"})
-                data = resp.json() if resp.status_code == 200 else {}
+                    if data.get("status") == "SUCCESS":
+                        logger.info("Renflair SMS OTP successfully dispatched to %s", phone_masked)
+                        return SendOtpResponse(
+                            status="success",
+                            gateway="renflair",
+                            delivered=True,
+                            message=f"SMS OTP successfully sent to {phone_masked} via Renflair Gateway.",
+                            phone_masked=phone_masked,
+                        )
+                    else:
+                        err_msg = data.get("message") or resp.text
+                        logger.warning("Renflair SMS Gateway warning: %s", err_msg)
+                        return SendOtpResponse(
+                            status="gateway_warning",
+                            gateway="renflair",
+                            delivered=False,
+                            message=f"{err_msg}",
+                            phone_masked=phone_masked,
+                        )
+            except Exception as rf_exc:
+                logger.error("Renflair network exception: %s", rf_exc)
+                return SendOtpResponse(
+                    status="error",
+                    gateway="renflair",
+                    delivered=False,
+                    message=f"Gateway connection error: {str(rf_exc)}",
+                    phone_masked=phone_masked,
+                )
 
-                if data.get("status") == "SUCCESS":
-                    logger.info("Renflair SMS OTP successfully dispatched to %s", phone_masked)
-                    return SendOtpResponse(
-                        status="success",
-                        gateway="renflair",
-                        delivered=True,
-                        message=f"SMS OTP successfully sent to {phone_masked} via Renflair Gateway.",
-                        phone_masked=phone_masked,
-                    )
-                else:
-                    err_msg = data.get("message") or resp.text
-                    logger.warning("Renflair SMS Gateway warning: %s", err_msg)
-                    return SendOtpResponse(
-                        status="gateway_warning",
-                        gateway="renflair",
-                        delivered=False,
-                        message=f"Gateway response: {err_msg}",
-                        phone_masked=phone_masked,
-                    )
-        except Exception as exc:
-            logger.error("Failed to connect to Renflair SMS Gateway: %s", exc)
-            return SendOtpResponse(
-                status="error",
-                gateway="renflair",
-                delivered=False,
-                message=f"Gateway connection error: {str(exc)}",
-                phone_masked=phone_masked,
-            )
+        return SendOtpResponse(
+            status="simulated",
+            gateway="local",
+            delivered=False,
+            message="No SMS gateway credentials configured.",
+            phone_masked=phone_masked,
+        )
 
     # ── GET /api/config ────────────────────────────────────────
     @router.get("/config", summary="Client configuration from environment variables")

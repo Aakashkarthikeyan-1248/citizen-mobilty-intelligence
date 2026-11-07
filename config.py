@@ -62,10 +62,30 @@ class Settings(BaseSettings):
         description="Groq Cloud API key for ultra-fast LLM inference (Model C priority)",
     )
 
-    # ── SMS & OTP Gateway (Renflair) ──────────────────────────
+    # ── SMS & OTP Gateway (Renflair & Twilio) ─────────────────
     renflair_api_key: str = Field(
         default="",
         description="Renflair SMS Gateway API key for mobile OTP dispatch",
+    )
+    twilio_account_sid: str = Field(
+        default="",
+        description="Twilio Account SID (starts with AC...)",
+    )
+    twilio_auth_token: str = Field(
+        default="",
+        description="Twilio primary Auth Token",
+    )
+    twilio_api_key_sid: str = Field(
+        default="",
+        description="Twilio API Key SID (starts with SK...)",
+    )
+    twilio_api_secret: str = Field(
+        default="",
+        description="Twilio API Key Secret",
+    )
+    twilio_phone_number: str = Field(
+        default="",
+        description="Twilio provisioned sending phone number (e.g. +1...)",
     )
 
     # ── Geolocation ───────────────────────────────────────────
