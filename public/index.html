@@ -2102,10 +2102,11 @@
                         </label>
                         <label>Range (Radius)
                             <select id="filter-range" onchange="renderCommunityFeed()">
-                                <option value="all">All Chennai Range</option>
-                                <option value="5">Within 5 km</option>
+                                <option value="4" selected>Around 3 to 4 km (My Area)</option>
+                                <option value="2">Within 2 km</option>
+                                <option value="6">Within 6 km</option>
                                 <option value="10">Within 10 km</option>
-                                <option value="15">Within 15 km</option>
+                                <option value="all">Entire Chennai City</option>
                             </select>
                         </label>
                     </div>
@@ -2431,7 +2432,14 @@
                 }
                 if (viewName === 'community-map') {
                     initCommunityMap();
-                    if (state.maps.comm) state.maps.comm.invalidateSize();
+                    if (state.maps.comm) {
+                        state.maps.comm.invalidateSize();
+                        if (state.user && state.user.lat && state.user.lng) {
+                            state.maps.comm.setView([state.user.lat, state.user.lng], 14);
+                        }
+                    }
+                    const rangeEl = document.getElementById('filter-range');
+                    if (rangeEl) rangeEl.value = '4'; // Default to around 3-4 km neighborhood range
                     await loadIncidentsFromDb();
                     renderCommunityFeed();
                 }
@@ -2676,16 +2684,27 @@
             try {
                 const { data, error } = await _sb.from('cmi_users').select('*');
                 if (!error && Array.isArray(data)) {
-                    state.users = data.map(u => ({
-                        id: u.id,
-                        name: u.name,
-                        email: (u.email || '').toLowerCase().trim(),
-                        phone: u.employee_id || '',
-                        password: u.hash || u.salt || '',
-                        role: u.role || 'citizen',
-                        status: u.status || 'active',
-                        credits: 50
-                    }));
+                    state.users = data.map(u => {
+                        let locData = {};
+                        try {
+                            if (u.salt && u.salt.startsWith('{')) {
+                                locData = JSON.parse(u.salt);
+                            }
+                        } catch (e) {}
+                        return {
+                            id: u.id,
+                            name: u.name,
+                            email: (u.email || '').toLowerCase().trim(),
+                            phone: u.employee_id || '',
+                            password: u.hash || '',
+                            location: locData.location || 'Chennai Central',
+                            lat: parseFloat(locData.lat) || 13.0600,
+                            lng: parseFloat(locData.lng) || 80.2400,
+                            role: u.role || 'citizen',
+                            status: u.status || 'active',
+                            credits: 50
+                        };
+                    });
                 }
             } catch (err) {
                 console.warn('Supabase users fetch error:', err);
@@ -3257,14 +3276,22 @@
             const cat = document.getElementById('filter-cat') ? document.getElementById('filter-cat').value : 'all';
             const sev = document.getElementById('filter-sev') ? document.getElementById('filter-sev').value : 'all';
             const stat = document.getElementById('filter-status') ? document.getElementById('filter-status').value : 'active';
-            const rangeFilter = document.getElementById('filter-range') ? document.getElementById('filter-range').value : 'all';
+            const rangeFilter = document.getElementById('filter-range') ? document.getElementById('filter-range').value : '4';
 
-            let centerLat = 13.0600;
-            let centerLng = 80.2400;
+            // User base location or map center
+            let refLat = (state.user && state.user.lat) ? state.user.lat : 13.0418;
+            let refLng = (state.user && state.user.lng) ? state.user.lng : 80.2341;
+            let refName = (state.user && state.user.location) ? state.user.location : 'Your Location';
+
+            // If map is panned far from user, use current map center
             if (state.maps.comm) {
                 const c = state.maps.comm.getCenter();
-                centerLat = c.lat;
-                centerLng = c.lng;
+                const panDist = getDistanceFromLatLonInKm(refLat, refLng, c.lat, c.lng);
+                if (panDist > 6) {
+                    refLat = c.lat;
+                    refLng = c.lng;
+                    refName = 'Map View Center';
+                }
             }
 
             let filtered = state.incidents.filter(i => {
@@ -3273,7 +3300,7 @@
                 if (stat === 'active' && i.status === 'resolved') return false;
                 if (stat !== 'active' && stat !== 'all' && i.status !== stat) return false;
 
-                const dist = getDistanceFromLatLonInKm(centerLat, centerLng, i.lat, i.lng);
+                const dist = getDistanceFromLatLonInKm(refLat, refLng, i.lat, i.lng);
                 i._dist = dist;
                 if (rangeFilter !== 'all' && dist > parseFloat(rangeFilter)) return false;
 
@@ -3285,14 +3312,39 @@
             filtered.sort((a, b) => (sevRank[b.sev] || 0) - (sevRank[a.sev] || 0) || (a._dist - b._dist));
 
             const feedCountEl = document.getElementById('feed-count');
-            if (feedCountEl) feedCountEl.textContent = `${filtered.length} public hazards in range`;
+            const rangeText = rangeFilter === 'all' ? 'Entire Chennai' : `Within ${rangeFilter} km of ${refName}`;
+            if (feedCountEl) feedCountEl.textContent = `${filtered.length} public hazards (${rangeText})`;
+
             const listEl = document.getElementById('feed-list');
             if (!listEl) return;
             listEl.innerHTML = '';
 
-            // Render on map
+            // Render on map with 3-4km neighborhood radius circle
             if (state.layers.commMarkers) {
                 state.layers.commMarkers.clearLayers();
+
+                // Draw user location marker and 3-4 km radius circle
+                if (state.user && state.user.lat && state.user.lng) {
+                    L.circle([state.user.lat, state.user.lng], {
+                        radius: 4000,
+                        color: '#2563eb',
+                        fillColor: '#3b82f6',
+                        fillOpacity: 0.06,
+                        weight: 2,
+                        dashArray: '6, 8'
+                    }).addTo(state.layers.commMarkers);
+
+                    const userIcon = L.divIcon({
+                        className: 'user-home-pin',
+                        html: '<div style="background:#1d4ed8; color:#fff; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px rgba(37,99,235,0.7); font-size:14px; border:2px solid #fff;">🏠</div>',
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14]
+                    });
+                    L.marker([state.user.lat, state.user.lng], { icon: userIcon })
+                        .bindPopup(`<strong>🏠 Your Registered Neighborhood</strong><br>${state.user.location || 'Chennai'}<br><span style="color:#2563eb; font-weight:700;">Active 3 to 4 km Protection Zone</span>`)
+                        .addTo(state.layers.commMarkers);
+                }
+
                 filtered.forEach(inc => {
                     const color = inc.sev === 'critical' ? '#ef4444' : inc.sev === 'high' ? '#f97316' : '#f59e0b';
                     const marker = L.circleMarker([inc.lat, inc.lng], {
@@ -3317,7 +3369,7 @@
                             </div>
                             <h4 class="circle-popup-title">${inc.title}</h4>
                             <p class="circle-popup-desc">${inc.description || 'Public road hazard.'}</p>
-                            <div class="circle-popup-loc">📍 ${inc.loc || 'Chennai'} · <strong style="color:#0284c7;">${inc._dist.toFixed(1)} km in range</strong></div>
+                            <div class="circle-popup-loc">📍 ${inc.loc || 'Chennai'} · <strong style="color:#0284c7;">${inc._dist.toFixed(1)} km from your location</strong></div>
                             <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">
                                 ${confirmsCount > 0 ? `👥 ${confirmsCount} Citizen${confirmsCount > 1 ? 's' : ''} Approved` : '⚡ Awaiting Ground-Truth Field Confirmation'}
                             </div>
@@ -3333,7 +3385,7 @@
                     `;
 
                     marker.bindPopup(popupContent, { offset: [0, -8], closeButton: true });
-                    marker.bindTooltip(`<b>${inc.title}</b><br><span style="color:${color};font-weight:700;">${inc.sev.toUpperCase()}</span> · ${inc._dist.toFixed(1)} km in range`, {
+                    marker.bindTooltip(`<b>${inc.title}</b><br><span style="color:${color};font-weight:700;">${inc.sev.toUpperCase()}</span> · ${inc._dist.toFixed(1)} km away`, {
                         direction: 'top',
                         offset: [0, -10],
                         opacity: 0.95
@@ -3344,6 +3396,22 @@
                         highlightIncidentCard(inc.id);
                     });
                 });
+            }
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = `
+                    <div style="padding:24px 16px; text-align:center; color:#64748b; background:#f8fafc; border-radius:12px; margin-top:12px; border:1px dashed #cbd5e1;">
+                        <div style="font-size:2rem; margin-bottom:8px;">🛡️</div>
+                        <div style="font-weight:700; color:#1e293b; margin-bottom:4px;">No Active Hazards in this ${rangeFilter} km Zone</div>
+                        <div style="font-size:0.82rem; line-height:1.5;">
+                            Road conditions around ${refName} look clear right now. You can expand the range to 6 km or 10 km, or report a new road hazard.
+                        </div>
+                        <button type="button" onclick="document.getElementById('filter-range').value='10'; renderCommunityFeed();" style="margin-top:10px; background:#e0f2fe; color:#0369a1; border:none; padding:6px 14px; border-radius:6px; font-weight:700; font-size:0.8rem; cursor:pointer;">
+                            Widen Range to 10 km
+                        </button>
+                    </div>
+                `;
+                return;
             }
 
             filtered.forEach(inc => {
@@ -3373,7 +3441,7 @@
                         <div class="card-title">${inc.title}</div>
                         <span class="chip-sev chip-${inc.sev}">${inc.sev.toUpperCase()}</span>
                     </div>
-                    <div class="card-loc">📍 ${inc.loc || 'Chennai'} • ${inc.cat} • <strong style="color:#0284c7;">${inc._dist.toFixed(1)} km in range</strong></div>
+                    <div class="card-loc">📍 ${inc.loc || 'Chennai'} • ${inc.cat} • <strong style="color:#0284c7;">📏 ${inc._dist.toFixed(1)} km away</strong></div>
                     <div style="font-size:0.78rem; color:#64748b; margin:4px 0 8px 0; line-height:1.4;">
                         ${inc.description ? inc.description.substring(0, 110) + (inc.description.length > 110 ? '...' : '') : 'Public road hazard.'}
                     </div>
@@ -3986,18 +4054,60 @@
             }
         }
 
+        function detectUserLocationSignup() {
+            if (!navigator.geolocation) {
+                showToast('Geolocation is not supported by your browser.', 'warn');
+                return;
+            }
+            showToast('📡 Detecting your current GPS location...', 'info');
+            navigator.geolocation.getCurrentPosition(
+                pos => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    let closestName = 'Chennai';
+                    let minDist = 999;
+                    if (typeof CHENNAI_LANDMARK_COORDS !== 'undefined') {
+                        for (const [name, coords] of Object.entries(CHENNAI_LANDMARK_COORDS)) {
+                            const d = getDistanceFromLatLonInKm(lat, lng, coords[0], coords[1]);
+                            if (d < minDist) {
+                                minDist = d;
+                                closestName = name.charAt(0).toUpperCase() + name.slice(1);
+                            }
+                        }
+                    }
+                    const locInput = document.getElementById('signup-location');
+                    if (locInput) {
+                        locInput.value = `${closestName}`;
+                        locInput.dataset.lat = lat;
+                        locInput.dataset.lng = lng;
+                    }
+                    showToast(`📍 GPS detected near ${closestName}!`, 'success');
+                },
+                err => {
+                    showToast('Could not fetch GPS location. Please select your area from the list.', 'warn');
+                },
+                { enableHighAccuracy: true, timeout: 6000 }
+            );
+        }
+
         async function handleCitizenSignup(e) {
             if (e) e.preventDefault();
             const name = (document.getElementById('signup-name').value || '').trim();
             const email = (document.getElementById('signup-email').value || '').trim().toLowerCase();
             const mobile = (document.getElementById('signup-mobile').value || '').trim();
+            const locInput = document.getElementById('signup-location');
+            const locRaw = locInput ? (locInput.value || '').trim() : 'Chennai Central';
             const pass = document.getElementById('signup-password').value;
             const confirmPass = document.getElementById('signup-confirm-password').value;
 
-            if (!name || !email || !mobile || !pass) {
-                showToast('Please fill all required fields.', 'warn');
+            if (!name || !email || !mobile || !pass || !locRaw) {
+                showToast('Please fill all required fields including your Chennai area.', 'warn');
                 return;
             }
+
+            const resolvedCoords = resolveChennaiCoords(locRaw);
+            const userLat = (locInput && locInput.dataset.lat) ? parseFloat(locInput.dataset.lat) : resolvedCoords[0];
+            const userLng = (locInput && locInput.dataset.lng) ? parseFloat(locInput.dataset.lng) : resolvedCoords[1];
 
             // Email check: reject if already registered
             const existingEmail = (state.users || []).find(u => u.email && u.email.toLowerCase() === email);
@@ -4044,6 +4154,9 @@
                 name: name,
                 email: email,
                 phone: mobile,
+                location: locRaw,
+                lat: userLat,
+                lng: userLng,
                 password: pass,
                 role: 'citizen',
                 credits: 50
@@ -4057,21 +4170,26 @@
             switchView('cmi-navigator');
 
             if (_sb) {
-                _sb.from('cmi_users').upsert({
-                    id: newUser.id,
-                    name: newUser.name,
-                    email: newUser.email,
-                    role: 'citizen',
-                    status: 'active',
-                    employee_id: newUser.phone,
-                    hash: newUser.password,
-                    salt: 'cmi'
-                }).catch(err => console.warn('Supabase save user error:', err));
+                const userMeta = JSON.stringify({ location: newUser.location, lat: newUser.lat, lng: newUser.lng });
+                try {
+                    await _sb.from('cmi_users').upsert({
+                        id: newUser.id,
+                        name: newUser.name,
+                        email: newUser.email,
+                        role: 'citizen',
+                        status: 'active',
+                        employee_id: newUser.phone,
+                        hash: newUser.password,
+                        salt: userMeta
+                    });
+                } catch (err) {
+                    console.warn('Supabase save user error:', err);
+                }
             }
         }
 
         // ── Forgot Password Flow (OTP -> Reset Email -> New Password) ──
-        function handleSendForgotOtp(e) {
+        async function handleSendForgotOtp(e) {
             if (e) e.preventDefault();
             const email = (document.getElementById('forgot-email').value || '').trim().toLowerCase();
             const mobile = (document.getElementById('forgot-mobile').value || '').trim();
@@ -4081,27 +4199,40 @@
                 return;
             }
 
+            // Verify account exists before generating OTP
+            let user = (state.users || []).find(u => u.email && u.email.toLowerCase() === email);
+            if (!user && _sb) {
+                try {
+                    const { data } = await _sb.from('cmi_users').select('*').ilike('email', email).limit(1);
+                    if (data && data.length > 0) {
+                        user = data[0];
+                    }
+                } catch (err) {}
+            }
+
+            if (!user) {
+                showToast('❌ No registered account found with this email. Please sign up first.', 'error');
+                switchAuthMode('signup');
+                return;
+            }
+
             const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
             state.forgotOtp = {
                 email,
                 mobile,
                 code: otpCode,
-                expiresAt: Date.now() + 600000
+                expiresAt: Date.now() + 600000 // 10 minutes
             };
 
-            document.getElementById('otp-target-mobile').textContent = mobile;
-            document.getElementById('demo-otp-display').textContent = otpCode;
-            document.getElementById('forgot-otp-input').value = '';
+            const targetMobileEl = document.getElementById('otp-target-mobile');
+            if (targetMobileEl) targetMobileEl.textContent = mobile;
+            const codeDisplayEl = document.getElementById('sms-simulated-code-display');
+            if (codeDisplayEl) codeDisplayEl.textContent = otpCode;
+            const inputEl = document.getElementById('forgot-otp-input');
+            if (inputEl) inputEl.value = '';
 
             switchAuthMode('forgot-2');
-            showToast(`📲 Security OTP [${otpCode}] sent via SMS to ${mobile}. Valid 10m.`, 'success');
-        }
-
-        function autofillForgotOtp() {
-            if (state.forgotOtp && state.forgotOtp.code) {
-                document.getElementById('forgot-otp-input').value = state.forgotOtp.code;
-                showToast('OTP code auto-filled.', 'info');
-            }
+            showToast(`📲 Security OTP dispatched for ${mobile}: [${otpCode}] (Valid for 10m)`, 'success');
         }
 
         function handleVerifyForgotOtp(e) {
@@ -4109,13 +4240,25 @@
             const enteredOtp = (document.getElementById('forgot-otp-input').value || '').trim();
 
             if (!state.forgotOtp || !state.forgotOtp.code) {
-                showToast('Please request a new OTP code first.', 'warn');
+                showToast('❌ Session expired. Please request a new verification OTP code.', 'error');
                 switchAuthMode('forgot-1');
                 return;
             }
 
+            if (Date.now() > state.forgotOtp.expiresAt) {
+                showToast('❌ OTP has expired. Please request a new code.', 'error');
+                switchAuthMode('forgot-1');
+                return;
+            }
+
+            // STRICT EXACT MATCH: Any wrong or random OTP is rejected!
             if (enteredOtp !== state.forgotOtp.code) {
-                showToast('Invalid OTP code. Please check SMS or click Auto-Fill.', 'error');
+                showToast('❌ Incorrect OTP code. Please enter the exact 6-digit code provided.', 'error');
+                const inp = document.getElementById('forgot-otp-input');
+                if (inp) {
+                    inp.value = '';
+                    inp.focus();
+                }
                 return;
             }
 
@@ -4124,7 +4267,7 @@
             document.getElementById('reset-confirm-password').value = '';
 
             switchAuthMode('forgot-3');
-            showToast(`📧 Password Reset link authorized for ${state.forgotOtp.email}.`, 'success');
+            showToast(`✅ Security OTP verified! Please enter your new password.`, 'success');
         }
 
         async function handleResetPassword(e) {
@@ -4176,9 +4319,13 @@
             }
 
             if (_sb) {
-                _sb.from('cmi_users').update({
-                    hash: newPass
-                }).ilike('email', targetEmail).catch(err => console.warn('Supabase pass update error:', err));
+                try {
+                    await _sb.from('cmi_users').update({
+                        hash: newPass
+                    }).ilike('email', targetEmail);
+                } catch (err) {
+                    console.warn('Supabase pass update error:', err);
+                }
             }
 
             state.user = user;
@@ -4290,6 +4437,7 @@
         window.switchAuthMode = switchAuthMode;
         window.handleCitizenLogin = handleCitizenLogin;
         window.handleCitizenSignup = handleCitizenSignup;
+        window.detectUserLocationSignup = detectUserLocationSignup;
         window.checkPasswordStrength = checkPasswordStrength;
         window.handleSendForgotOtp = handleSendForgotOtp;
         window.autofillForgotOtp = autofillForgotOtp;
@@ -4373,6 +4521,42 @@
                             <input type="tel" id="signup-mobile" placeholder="+91 98765 43210" required>
                         </div>
                         <div class="auth-form-group">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <label style="margin:0;">Your Chennai Area / Neighborhood *</label>
+                                <button type="button" onclick="detectUserLocationSignup()" style="background:none; border:none; color:#1a73e8; font-size:0.76rem; font-weight:700; cursor:pointer; padding:0;">
+                                    📍 Detect GPS
+                                </button>
+                            </div>
+                            <input type="text" id="signup-location" list="chennai-neighborhoods" placeholder="e.g. Velachery, T. Nagar, Guindy, Anna Nagar" required>
+                            <datalist id="chennai-neighborhoods">
+                                <option value="Velachery">
+                                <option value="T. Nagar">
+                                <option value="Guindy">
+                                <option value="Anna Nagar">
+                                <option value="Adyar">
+                                <option value="Mylapore">
+                                <option value="Egmore">
+                                <option value="Saidapet">
+                                <option value="Perambur">
+                                <option value="Ayanavaram">
+                                <option value="Chromepet">
+                                <option value="Tambaram">
+                                <option value="Koyambedu">
+                                <option value="Porur">
+                                <option value="Vadapalani">
+                                <option value="Pallavaram">
+                                <option value="Sholinganallur">
+                                <option value="Thiruvanmiyur">
+                                <option value="Besant Nagar">
+                                <option value="Nungambakkam">
+                                <option value="Kodambakkam">
+                                <option value="Chennai Central">
+                            </datalist>
+                            <div style="font-size:0.73rem; color:#64748b; margin-top:3px;">
+                                Used to automatically focus your 3 to 4 km neighborhood hazard alerts.
+                            </div>
+                        </div>
+                        <div class="auth-form-group">
                             <label>Create Password *</label>
                             <input type="password" id="signup-password" placeholder="Min 8 characters (letters and numbers)" minlength="8" oninput="checkPasswordStrength(this.value)" required>
                             <div id="signup-password-hint" style="font-size:0.75rem; color:#64748b; margin-top:4px;">Requirements: At least 8 characters, containing letters and numbers.</div>
@@ -4411,19 +4595,22 @@
 
                 <!-- ── VIEW 4: FORGOT PASSWORD - STEP 2 (VERIFY MOBILE OTP) ── -->
                 <div class="auth-subview" id="auth-view-forgot-2" style="display:none;">
-                    <div class="auth-banner-notice" id="otp-sent-banner">
-                        📲 <strong>OTP Dispatched:</strong> A 6-digit code has been sent to your mobile phone <strong id="otp-target-mobile">+91 98401 23456</strong>.
+                    <div class="auth-banner-notice" id="otp-sent-banner" style="background:#f0fdf4; border:1px solid #86efac; color:#166534; padding:12px; border-radius:8px; margin-bottom:12px;">
+                        <div style="font-weight:700; font-size:0.88rem; margin-bottom:4px;">📲 Security Verification Code</div>
+                        <div style="font-size:0.84rem; margin:6px 0;">
+                            Verification Code: <span style="font-size:1.2rem; font-weight:800; background:#dcfce7; padding:2px 10px; border-radius:6px; letter-spacing:0.2em; color:#15803d;" id="sms-simulated-code-display">------</span>
+                        </div>
+                        <div style="font-size:0.72rem; color:#475569; line-height:1.4; margin-top:6px;">
+                            ℹ️ Note: Physical cellular SMS to Indian phone numbers requires an active telecom gateway (Twilio / Fast2SMS API). The authorized security OTP is displayed above for instant verification.
+                        </div>
                     </div>
-                    <p class="auth-view-sub">Enter the 6-digit verification code below to authorize the password reset email.</p>
+                    <p class="auth-view-sub">Enter the exact 6-digit verification code above to authorize your password reset.</p>
                     <form onsubmit="handleVerifyForgotOtp(event)">
                         <div class="auth-form-group" style="text-align:center;">
-                            <label style="text-align:center;">6-Digit Mobile OTP *</label>
+                            <label style="text-align:center;">Enter 6-Digit OTP *</label>
                             <input type="text" id="forgot-otp-input" placeholder="• • • • • •" maxlength="6" style="text-align:center; font-size:1.4rem; font-weight:800; letter-spacing:0.35em;" required>
                         </div>
-                        <div style="margin-bottom:12px; text-align:center;">
-                            <button type="button" class="btn-autofill-otp" onclick="autofillForgotOtp()">⚡ Auto-Fill Demo OTP (<span id="demo-otp-display">------</span>)</button>
-                        </div>
-                        <button type="submit" class="btn-auth-submit" style="background:#16a34a;">Verify Mobile OTP & Send Reset Email 📧</button>
+                        <button type="submit" class="btn-auth-submit" style="background:#16a34a;">Verify Security OTP & Continue 🔒</button>
                     </form>
                     <div style="margin-top:12px; font-size:0.84rem; display:flex; justify-content:space-between;">
                         <a href="javascript:void(0)" onclick="handleSendForgotOtp(event)" style="color:#1a73e8; font-weight:600; text-decoration:none;">Resend OTP</a>
