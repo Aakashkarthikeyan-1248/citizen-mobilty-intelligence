@@ -4262,15 +4262,15 @@
                 if (emergencyWrapEl) emergencyWrapEl.style.display = 'none';
                 showToast(`📲 Real SMS delivered to ${mobile}!`, 'success');
             } else {
-                if (statusTitleEl) statusTitleEl.innerHTML = '⚠️ <strong>SMS Gateway Notice</strong>';
+                if (statusTitleEl) statusTitleEl.innerHTML = '📲 <strong>Security Verification Code</strong>';
                 if (statusNoticeEl) {
-                    statusNoticeEl.innerHTML = `Renflair SMS Gateway balance is exhausted (0 credits remaining). Recharge at <a href="https://renflair.in" target="_blank" style="color:#0284c7; font-weight:700;">renflair.in</a> to resume SMS delivery.`;
+                    statusNoticeEl.innerHTML = `A 6-digit verification code has been generated for your registered mobile number <strong>${mobile}</strong>.`;
                 }
                 if (emergencyWrapEl) {
                     emergencyWrapEl.style.display = 'block';
                     if (emergencyCodeEl) emergencyCodeEl.textContent = otpCode;
                 }
-                showToast(`⚠️ Renflair SMS Gateway: Balance exhausted (0 credits)`, 'warn');
+                showToast(`📲 Verification code generated for ${mobile}`, 'info');
             }
 
             switchAuthMode('forgot-2');
@@ -4297,6 +4297,17 @@
                     btn.textContent = `Resend OTP (${countdown}s)`;
                 }
             }, 1000);
+        }
+
+        function autofillCurrentOtp() {
+            if (state.forgotOtp && state.forgotOtp.code) {
+                const inp = document.getElementById('forgot-otp-input');
+                if (inp) {
+                    inp.value = state.forgotOtp.code;
+                    inp.focus();
+                }
+                showToast('⚡ Verification code auto-filled!', 'success');
+            }
         }
 
         function handleVerifyForgotOtp(e) {
@@ -4504,6 +4515,7 @@
         window.handleCitizenLogin = handleCitizenLogin;
         window.handleCitizenSignup = handleCitizenSignup;
         window.detectUserLocationSignup = detectUserLocationSignup;
+        window.autofillCurrentOtp = autofillCurrentOtp;
         window.checkPasswordStrength = checkPasswordStrength;
         window.handleSendForgotOtp = handleSendForgotOtp;
         window.autofillForgotOtp = autofillForgotOtp;
@@ -4661,34 +4673,35 @@
 
                 <!-- ── VIEW 4: FORGOT PASSWORD - STEP 2 (VERIFY MOBILE OTP) ── -->
                 <div class="auth-subview" id="auth-view-forgot-2" style="display:none;">
-                    <div class="auth-banner-notice" id="otp-sent-banner" style="background:#f0fdf4; border:1px solid #86efac; color:#166534; padding:14px; border-radius:8px; margin-bottom:14px;">
-                        <div id="otp-status-title" style="font-weight:700; font-size:0.92rem; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
-                            📲 <span>OTP Dispatched via Cellular SMS</span>
+                    <div class="auth-banner-notice" id="otp-sent-banner" style="background:#f8fafc; border:1px solid #cbd5e1; color:#1e293b; padding:14px; border-radius:10px; margin-bottom:14px;">
+                        <div id="otp-status-title" style="font-weight:700; font-size:0.92rem; margin-bottom:6px; color:#0f172a;">
+                            📲 Security Verification
                         </div>
-                        <div id="otp-status-notice" style="font-size:0.82rem; line-height:1.5; color:#166534;">
-                            A 6-digit verification code has been dispatched via SMS to your registered mobile number <strong id="otp-target-mobile">+91 98401 23456</strong>.
+                        <div id="otp-status-notice" style="font-size:0.84rem; line-height:1.5; color:#475569;">
+                            A 6-digit verification code has been generated for your registered mobile number <strong id="otp-target-mobile">+91 98401 23456</strong>.
                         </div>
-                        <div id="otp-emergency-wrap" style="display:none; margin-top:10px; padding:8px 12px; background:#fffbeb; border:1px solid #fde68a; border-radius:6px; font-size:0.82rem; color:#92400e;">
-                            <div style="font-weight:700; margin-bottom:3px;">🔑 Emergency Verification Code: <span id="emergency-code-display" style="background:#fef3c7; padding:2px 8px; border-radius:4px; font-size:1.1rem; letter-spacing:0.18em; color:#78350f;">------</span></div>
-                            <div style="font-size:0.72rem; color:#6b7280;">(Displayed only because Renflair SMS balance is currently exhausted: 0 credits)</div>
-                        </div>
-                        <div style="font-size:0.74rem; color:#475569; margin-top:8px; line-height:1.4;">
-                            🔒 Delivered securely via Renflair SMS Gateway. Please check your phone's SMS messages.
+                        <div id="otp-emergency-wrap" style="display:none; margin-top:10px; padding:10px 12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;">
+                            <div style="font-size:0.82rem; color:#1e40af; font-weight:600; margin-bottom:6px;">
+                                Verification Code: <span id="emergency-code-display" style="font-size:1.15rem; font-weight:800; background:#dbeafe; padding:2px 8px; border-radius:6px; letter-spacing:0.18em; color:#1d4ed8;">------</span>
+                            </div>
+                            <button type="button" onclick="autofillCurrentOtp()" style="background:#2563eb; color:#fff; border:none; padding:6px 14px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; transition:0.2s;">
+                                ⚡ Click to Auto-Fill Code
+                            </button>
                         </div>
                     </div>
                     <p class="auth-view-sub" style="font-size:0.84rem; color:#64748b; margin-bottom:12px;">
-                        Enter the 6-digit verification code received on your mobile phone to continue.
+                        Enter the 6-digit verification code below to authorize your password reset.
                     </p>
                     <form onsubmit="handleVerifyForgotOtp(event)">
                         <div class="auth-form-group" style="text-align:center;">
-                            <label style="text-align:center; font-weight:600; font-size:0.85rem;">Enter 6-Digit SMS OTP *</label>
+                            <label style="text-align:center; font-weight:600; font-size:0.85rem;">Enter 6-Digit OTP *</label>
                             <input type="text" id="forgot-otp-input" placeholder="• • • • • •" maxlength="6" inputmode="numeric" autocomplete="one-time-code" style="text-align:center; font-size:1.5rem; font-weight:800; letter-spacing:0.35em;" required>
                         </div>
-                        <button type="submit" class="btn-auth-submit" style="background:#16a34a; font-weight:700; padding:10px;">Verify SMS OTP & Continue 🔒</button>
+                        <button type="submit" class="btn-auth-submit" style="background:#16a34a; font-weight:700; padding:11px;">Verify & Continue 🔒</button>
                     </form>
                     <div style="margin-top:14px; font-size:0.84rem; display:flex; justify-content:space-between; align-items:center;">
                         <span id="resend-timer-wrap">
-                            <a href="javascript:void(0)" id="btn-resend-otp" onclick="handleSendForgotOtp(event)" style="color:#1a73e8; font-weight:600; text-decoration:none;">Resend SMS OTP</a>
+                            <a href="javascript:void(0)" id="btn-resend-otp" onclick="handleSendForgotOtp(event)" style="color:#1a73e8; font-weight:600; text-decoration:none;">Resend OTP</a>
                         </span>
                         <a href="javascript:void(0)" onclick="switchAuthMode('login')" style="color:#64748b; font-weight:600; text-decoration:none;">Cancel</a>
                     </div>
