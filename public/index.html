@@ -98,7 +98,7 @@
 
         /* Nav tabs */
         nav.nav-tabs {
-            display: flex;
+            display: none; /* Hidden until authenticated */
             gap: 4px;
             align-items: center;
         }
@@ -1213,7 +1213,8 @@
             box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            justify-content: flex-start;
+            gap: 12px;
             transition: all 0.25s ease;
             position: relative;
             overflow: hidden;
@@ -1788,18 +1789,18 @@
             <div class="brand-text">CMI CityLens <span class="brand-tag">Chennai</span></div>
         </div>
 
-        <nav class="nav-tabs">
+        <nav class="nav-tabs" id="main-nav-tabs" style="display:none;">
             <button class="nav-tab-btn active" data-view="home" onclick="switchView('home')">
                 <svg style="width:16px;height:16px;" viewBox="0 0 24 24"><path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
                 <span>Home</span>
             </button>
-            <button class="nav-tab-btn" data-view="cmi-navigator" onclick="switchView('cmi-navigator')">
+            <button class="nav-tab-btn citizen-nav-tab" data-view="cmi-navigator" onclick="switchView('cmi-navigator')">
                 <span>🧭</span> <span>AI Corridor Navigator</span>
             </button>
-            <button class="nav-tab-btn" data-view="community-map" onclick="switchView('community-map')">
+            <button class="nav-tab-btn citizen-nav-tab" data-view="community-map" onclick="switchView('community-map')">
                 <span>📍</span> <span>Community Incidents</span>
             </button>
-            <button class="nav-tab-btn" data-view="report-hazard" onclick="switchView('report-hazard')">
+            <button class="nav-tab-btn citizen-nav-tab" data-view="report-hazard" onclick="switchView('report-hazard')">
                 <span>⚠️</span> <span>Report Hazard</span>
                 <span class="tag-credit">+10 pts</span>
             </button>
@@ -1863,9 +1864,7 @@
                                 Plan your trip across Chennai with dual AI reasoning (NVIDIA NIM & Groq). Receive plain-language guidance on active flyover construction at T. Nagar, Metro Rail diversions on Anna Salai, or peak jams at Kathipara before you get stuck.
                             </p>
                         </div>
-                        <button class="btn-card-action" onclick="switchView('cmi-navigator')">
-                            <span>Open Route Navigator</span> →
-                        </button>
+                        
                     </div>
 
                     <!-- Card 2 -->
@@ -1879,9 +1878,7 @@
                                 Inspect verified neighborhood road conditions. Check live reports of waterlogging during rain, open potholes, road cave-ins, and fallen trees reported in real time by fellow Chennai citizens across all 15 zones.
                             </p>
                         </div>
-                        <button class="btn-card-action" onclick="switchView('community-map')">
-                            <span>Explore Community Map</span> →
-                        </button>
+                        
                     </div>
 
                     <!-- Card 3 -->
@@ -1895,9 +1892,7 @@
                                 Spot an unbarricaded trench or hazardous crater on your street? Snap a photo, drop a pin, and report it in 30 seconds. Earn verified civic mobility tokens on our public ledger for every validated contribution.
                             </p>
                         </div>
-                        <button class="btn-card-action" onclick="switchView('report-hazard')">
-                            <span>Report a Road Hazard</span> →
-                        </button>
+                        
                     </div>
 
                     <!-- Card 4 -->
@@ -1911,21 +1906,15 @@
                                 Your reports don't get lost in bureaucracy. Verified community hazards feed directly to Greater Chennai Corporation (GCC) engineers and Chennai Traffic Police command for prioritized road repair and rapid on-ground resolution.
                             </p>
                         </div>
-                        <button class="btn-card-action" onclick="openAuthModal('admin')">
-                            <span>Municipal Officer Portal</span> →
-                        </button>
+                        
                     </div>
                 </div>
 
                 <!-- Primary Public Action Buttons -->
                 <div class="public-main-actions">
-                    <button class="btn-public-primary" onclick="switchView('cmi-navigator')">
-                        <svg style="width:20px;height:20px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                        <span>Start Corridor Navigation</span>
-                    </button>
-                    <button class="btn-public-secondary" onclick="openAuthModal('citizen')">
-                        <svg style="width:18px;height:18px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                        <span>Citizen Sign In / Register</span>
+                    <button class="btn-public-primary" onclick="openAuthModal('citizen', 'login')" style="padding:16px 36px; font-size:1.1rem; border-radius:14px; box-shadow: 0 10px 30px rgba(37,99,235,0.45);">
+                        <svg style="width:22px;height:22px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                        <span>Sign In / Register to Access Platform</span>
                     </button>
                 </div>
 
@@ -2350,7 +2339,7 @@
 
         // ── Global State ──────────────────────────────────────────────
         const state = {
-            currentView: 'cmi-navigator',
+            currentView: 'home',
             user: null,
             users: [],
             incidents: [...CHENNAI_SEEDS],
@@ -2389,8 +2378,17 @@
             if (viewName === 'community') viewName = 'community-map';
             if (viewName === 'report') viewName = 'report-hazard';
             if (viewName === 'admin') viewName = 'admin-center';
+
+            // AUTH GUARD: Website must access ONLY through user login
+            if (viewName !== 'home' && !state.user) {
+                showToast('Please sign in or register to access this platform page.', 'warn');
+                openAuthModal('citizen', 'login');
+                return;
+            }
+
             if (viewName === 'admin-center' && (!state.user || state.user.role !== 'admin')) {
-                showToast('Municipal Admin access required.', 'warn');
+                showToast('Municipal Admin authorization required.', 'warn');
+                openAuthModal('admin', 'admin-login');
                 return;
             }
 
@@ -3790,7 +3788,8 @@
             state.user = user;
             onUserLoggedIn();
             closeAuthModal();
-            showToast(`Welcome back, ${state.user.name}! (${state.user.credits || 980} Civic Credits)`, 'success');
+            showToast(`Welcome back, ${state.user.name}! (${state.user.credits || 120} Civic Credits)`, 'success');
+            switchView('cmi-navigator');
         }
 
         async function handleCitizenSignup(e) {
@@ -3825,6 +3824,7 @@
             onUserLoggedIn();
             closeAuthModal();
             showToast(`🎉 Account created! Welcome, ${newUser.name} (+50 Welcome Credits)`, 'success');
+            switchView('cmi-navigator');
 
             if (_sb) {
                 _sb.from('cmi_users').upsert({
@@ -3972,26 +3972,47 @@
         }
 
         function onUserLoggedIn() {
-            document.getElementById('header-credits').style.display = 'flex';
-            document.getElementById('credit-count').textContent = state.user.credits || 0;
-            document.getElementById('auth-slot').innerHTML = `
-                <button class="user-dropdown-btn" onclick="logoutUser()">👤 ${state.user.name} (Logout)</button>
-            `;
+            const navTabs = document.getElementById('main-nav-tabs');
+            if (navTabs) navTabs.style.display = 'flex';
 
-            if (state.user.role === 'admin') {
-                document.getElementById('nav-btn-admin').style.display = 'flex';
+            const adminTab = document.getElementById('nav-btn-admin');
+            const citizenTabs = document.querySelectorAll('.citizen-nav-tab');
+
+            if (state.user && state.user.role === 'admin') {
+                if (adminTab) adminTab.style.display = 'inline-flex';
+                citizenTabs.forEach(t => t.style.display = 'none');
+                document.getElementById('header-credits').style.display = 'none';
+            } else {
+                if (adminTab) adminTab.style.display = 'none';
+                citizenTabs.forEach(t => t.style.display = 'inline-flex');
+                document.getElementById('header-credits').style.display = 'flex';
+                document.getElementById('credit-count').textContent = state.user.credits || 0;
             }
+
+            document.getElementById('auth-slot').innerHTML = `
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="background:rgba(255,255,255,0.08); padding:5px 12px; border-radius:20px; font-size:0.82rem; font-weight:600; color:#fff; border:1px solid rgba(255,255,255,0.15);">
+                        <span>${state.user.role === 'admin' ? '🏛️' : '👤'}</span> ${state.user.name || state.user.email}
+                    </div>
+                    <button class="btn-logout" onclick="logoutUser()" style="background:#ef4444; color:#fff; border:none; padding:6px 14px; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer; transition:0.2s;">Log Out</button>
+                </div>
+            `;
         }
 
         function logoutUser() {
             state.user = null;
+            const navTabs = document.getElementById('main-nav-tabs');
+            if (navTabs) navTabs.style.display = 'none';
+
+            const adminTab = document.getElementById('nav-btn-admin');
+            if (adminTab) adminTab.style.display = 'none';
+
             document.getElementById('header-credits').style.display = 'none';
-            document.getElementById('nav-btn-admin').style.display = 'none';
             document.getElementById('auth-slot').innerHTML = `
                 <button class="btn-auth" onclick="openAuthModal()">Log in / Sign up</button>
             `;
-            showToast('You have been logged out.', 'info');
-            switchView('cmi-navigator');
+            showToast('You have been logged out. Please sign in to access the platform.', 'info');
+            switchView('home');
         }
 
         function awardCredits(pts) {
@@ -4067,18 +4088,18 @@
                     <form onsubmit="handleCitizenLogin(event)">
                         <div class="auth-form-group">
                             <label>Email Address *</label>
-                            <input type="email" id="login-email" placeholder="aakashkarthikeyan1248@gmail.com" value="aakashkarthikeyan1248@gmail.com" required>
+                            <input type="email" id="login-email" placeholder="aakashkarthikeyan1248@gmail.com" value="" required>
                         </div>
                         <div class="auth-form-group">
                             <label>Mobile Number (Registered) *</label>
-                            <input type="tel" id="login-mobile" placeholder="+91 98401 23456" value="+91 98401 23456" required>
+                            <input type="tel" id="login-mobile" placeholder="+91 98401 23456" value="" required>
                         </div>
                         <div class="auth-form-group">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
                                 <label style="margin:0;">Password *</label>
                                 <a href="javascript:void(0)" onclick="switchAuthMode('forgot-1')" style="font-size:0.78rem; color:#1a73e8; font-weight:600; text-decoration:none;">Forgot Password?</a>
                             </div>
-                            <input type="password" id="login-password" placeholder="••••••••" value="password123" required>
+                            <input type="password" id="login-password" placeholder="••••••••" value="" required>
                         </div>
                         <button type="submit" class="btn-auth-submit">Sign In as Citizen</button>
                     </form>
@@ -4087,10 +4108,7 @@
                         New to CMI? <a href="javascript:void(0)" onclick="switchAuthMode('signup')" style="color:#1a73e8; font-weight:700; text-decoration:none;">Sign Up for an account</a>
                     </div>
 
-                    <div class="auth-demo-divider">Quick Demo Login</div>
-                    <button class="btn-quick-demo" onclick="quickLoginDemo('citizen')">
-                        <span>🚀</span> One-Click Demo: <strong>Aakash Karthikeyan (980 pts)</strong>
-                    </button>
+                    
                 </div>
 
                 <!-- ── VIEW 2: CITIZEN SIGN UP (NEW USERS) ── -->
@@ -4099,7 +4117,7 @@
                     <form onsubmit="handleCitizenSignup(event)">
                         <div class="auth-form-group">
                             <label>Full Name *</label>
-                            <input type="text" id="signup-name" placeholder="Aakash Karthikeyan" value="Aakash Karthikeyan" required>
+                            <input type="text" id="signup-name" placeholder="Aakash Karthikeyan" value="" required>
                         </div>
                         <div class="auth-form-group">
                             <label>Email Address *</label>
@@ -4131,11 +4149,11 @@
                     <form onsubmit="handleSendForgotOtp(event)">
                         <div class="auth-form-group">
                             <label>Registered Email Address *</label>
-                            <input type="email" id="forgot-email" placeholder="aakashkarthikeyan1248@gmail.com" value="aakashkarthikeyan1248@gmail.com" required>
+                            <input type="email" id="forgot-email" placeholder="aakashkarthikeyan1248@gmail.com" value="" required>
                         </div>
                         <div class="auth-form-group">
                             <label>Registered Mobile Number *</label>
-                            <input type="tel" id="forgot-mobile" placeholder="+91 98401 23456" value="+91 98401 23456" required>
+                            <input type="tel" id="forgot-mobile" placeholder="+91 98401 23456" value="" required>
                         </div>
                         <button type="submit" class="btn-auth-submit" style="background:#0284c7;">Send Security OTP to Mobile 📲</button>
                     </form>
@@ -4191,23 +4209,20 @@
                     <form onsubmit="handleAdminLogin(event)">
                         <div class="auth-form-group">
                             <label>Municipal Officer ID / Email *</label>
-                            <input type="text" id="admin-login-id" placeholder="GCC-TRAFFIC-DIV-04" value="GCC-TRAFFIC-DIV-04" required>
+                            <input type="text" id="admin-login-id" placeholder="GCC-TRAFFIC-DIV-04" value="" required>
                         </div>
                         <div class="auth-form-group">
                             <label>Official Mobile Number *</label>
-                            <input type="tel" id="admin-login-phone" placeholder="+91 98400 11223" value="+91 98400 11223" required>
+                            <input type="tel" id="admin-login-phone" placeholder="+91 98400 11223" value="" required>
                         </div>
                         <div class="auth-form-group">
                             <label>Department Security Key / Password *</label>
-                            <input type="password" id="admin-login-pass" placeholder="••••••••" value="GCC-Traffic-2026" required>
+                            <input type="password" id="admin-login-pass" placeholder="••••••••" value="" required>
                         </div>
                         <button type="submit" class="btn-auth-submit btn-auth-admin">Sign In as Municipal Official</button>
                     </form>
                     
-                    <div class="auth-demo-divider">Quick Demo Access</div>
-                    <button class="btn-quick-demo" onclick="quickLoginDemo('admin')">
-                        <span>🛡️</span> One-Click Demo: <strong>Chief Traffic Inspector (GCC Admin)</strong>
-                    </button>
+                    
                     <div style="margin-top:14px; font-size:0.84rem; text-align:center;">
                         <a href="javascript:void(0)" onclick="selectAuthRole('citizen')" style="color:#64748b; font-weight:600; text-decoration:none;">← Back to Citizen Login</a>
                     </div>
