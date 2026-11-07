@@ -96,6 +96,20 @@ class ProviderInfo(BaseModel):
     configured: bool
 
 
+class SendOtpRequest(BaseModel):
+    phone: str = Field(..., description="Mobile phone number")
+    email: Optional[str] = Field(default=None, description="User email for audit")
+    otp: str = Field(..., min_length=4, max_length=8, description="OTP code")
+
+
+class SendOtpResponse(BaseModel):
+    status: str
+    gateway: str
+    delivered: bool
+    message: str
+    phone_masked: str
+
+
 # ── Router Factory ─────────────────────────────────────────────
 
 def create_router(
@@ -218,6 +232,73 @@ def create_router(
         except Exception as exc:
             return {"status": "error", "detail": str(exc)}
 
+    # ── POST /api/auth/send-otp ────────────────────────────────
+    @router.post(
+        "/auth/send-otp",
+        response_model=SendOtpResponse,
+        summary="Send real cellular SMS OTP via Renflair Gateway",
+    )
+    async def send_sms_otp(req: SendOtpRequest):
+        """Dispatches an SMS OTP to an Indian mobile phone using the Renflair SMS Gateway."""
+        import httpx
+        import re
+        from config import get_settings
+
+        settings = get_settings()
+        clean_phone = re.sub(r"[^\d]", "", req.phone)
+        if len(clean_phone) > 10 and clean_phone.startswith("91"):
+            clean_phone = clean_phone[-10:]
+        elif len(clean_phone) > 10:
+            clean_phone = clean_phone[-10:]
+
+        phone_masked = f"+91 {clean_phone[:2]}•••••{clean_phone[-3:]}" if len(clean_phone) == 10 else req.phone
+
+        if not settings.renflair_api_key:
+            logger.warning("Renflair SMS API key not configured in .env. Falling back to local display.")
+            return SendOtpResponse(
+                status="simulated",
+                gateway="local",
+                delivered=False,
+                message="SMS gateway API key not configured. OTP displayed on screen.",
+                phone_masked=phone_masked,
+            )
+
+        # Dispatch via Renflair SMS Gateway
+        renflair_url = f"https://sms.renflair.in/V1.php?API={settings.renflair_api_key}&PHONE={clean_phone}&OTP={req.otp}"
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                resp = await client.get(renflair_url, headers={"User-Agent": "CMI-Platform/1.0"})
+                data = resp.json() if resp.status_code == 200 else {}
+
+                if data.get("status") == "SUCCESS":
+                    logger.info("Renflair SMS OTP successfully dispatched to %s", phone_masked)
+                    return SendOtpResponse(
+                        status="success",
+                        gateway="renflair",
+                        delivered=True,
+                        message=f"SMS OTP successfully sent to {phone_masked} via Renflair Gateway.",
+                        phone_masked=phone_masked,
+                    )
+                else:
+                    err_msg = data.get("message") or resp.text
+                    logger.warning("Renflair SMS Gateway warning: %s", err_msg)
+                    return SendOtpResponse(
+                        status="gateway_warning",
+                        gateway="renflair",
+                        delivered=False,
+                        message=f"Gateway response: {err_msg}",
+                        phone_masked=phone_masked,
+                    )
+        except Exception as exc:
+            logger.error("Failed to connect to Renflair SMS Gateway: %s", exc)
+            return SendOtpResponse(
+                status="error",
+                gateway="renflair",
+                delivered=False,
+                message=f"Gateway connection error: {str(exc)}",
+                phone_masked=phone_masked,
+            )
+
     # ── GET /api/config ────────────────────────────────────────
     @router.get("/config", summary="Client configuration from environment variables")
     async def get_client_config():
@@ -227,6 +308,7 @@ def create_router(
         return {
             "supabase_url": settings.supabase_url,
             "supabase_key": settings.supabase_key,
+            "has_sms_gateway": bool(settings.renflair_api_key),
             "app_env": settings.app_env,
             "version": "0.2.0",
         }

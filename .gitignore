@@ -9,9 +9,14 @@ build/
 venv/
 .venv/
 
-# Environment secrets
+# Environment secrets & API keys
 .env
 .env.*
+.nv
+*.env
+*.nv
+*.key
+*.pem
 !.env.example
 
 # Data artifacts

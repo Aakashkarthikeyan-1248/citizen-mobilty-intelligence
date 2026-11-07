@@ -62,6 +62,12 @@ class Settings(BaseSettings):
         description="Groq Cloud API key for ultra-fast LLM inference (Model C priority)",
     )
 
+    # ── SMS & OTP Gateway (Renflair) ──────────────────────────
+    renflair_api_key: str = Field(
+        default="",
+        description="Renflair SMS Gateway API key for mobile OTP dispatch",
+    )
+
     # ── Geolocation ───────────────────────────────────────────
     google_maps_api_key: str = Field(
         default="",
