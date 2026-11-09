@@ -3997,11 +3997,11 @@
                 const el = document.getElementById('auth-view-signup');
                 if (el) el.style.display = 'block';
             } else if (mode === 'forgot-1') {
-                if (title) title.textContent = 'Reset Password (Step 1 of 3)';
+                if (title) title.textContent = 'Reset Password via Email (Step 1 of 3)';
                 const el = document.getElementById('auth-view-forgot-1');
                 if (el) el.style.display = 'block';
             } else if (mode === 'forgot-2') {
-                if (title) title.textContent = 'Verify Mobile OTP (Step 2 of 3)';
+                if (title) title.textContent = 'Verify Email Code (Step 2 of 3)';
                 const el = document.getElementById('auth-view-forgot-2');
                 if (el) el.style.display = 'block';
             } else if (mode === 'forgot-3') {
@@ -4014,11 +4014,10 @@
         async function handleCitizenLogin(e) {
             if (e) e.preventDefault();
             const email = (document.getElementById('login-email').value || '').trim().toLowerCase();
-            const mobile = (document.getElementById('login-mobile').value || '').trim();
             const pass = document.getElementById('login-password').value;
 
-            if (!email || !mobile || !pass) {
-                showToast('Please enter your email, mobile number, and password.', 'warn');
+            if (!email || !pass) {
+                showToast('Please enter your email and password.', 'warn');
                 return;
             }
 
@@ -4063,17 +4062,7 @@
                 return;
             }
 
-            // Check registered mobile number
-            if (user.phone) {
-                const cleanUserPhone = user.phone.replace(/\D/g, '');
-                const cleanInputPhone = mobile.replace(/\D/g, '');
-                if (cleanUserPhone && cleanInputPhone && !cleanUserPhone.endsWith(cleanInputPhone.slice(-10)) && !cleanInputPhone.endsWith(cleanUserPhone.slice(-10))) {
-                    showToast('❌ Mobile number does not match your registered account.', 'error');
-                    return;
-                }
-            } else {
-                user.phone = mobile;
-            }
+            // Mobile check omitted - authenticated directly by registered email and password
 
             state.user = user;
             onUserLoggedIn();
@@ -4283,18 +4272,18 @@
             }
         }
 
-        // ── Forgot Password Flow (OTP -> Reset Email -> New Password) ──
+        // ── Forgot Password Flow (Email Verification -> New Password) ──
         async function handleSendForgotOtp(e) {
             if (e) e.preventDefault();
-            const email = (document.getElementById('forgot-email').value || '').trim().toLowerCase();
-            const mobile = (document.getElementById('forgot-mobile').value || '').trim();
+            const emailInput = document.getElementById('forgot-email');
+            const email = (emailInput ? emailInput.value : (state.forgotOtp ? state.forgotOtp.email : '') || '').trim().toLowerCase();
 
-            if (!email || !mobile) {
-                showToast('Please provide your registered email and mobile number.', 'warn');
+            if (!email) {
+                showToast('Please provide your registered email address.', 'warn');
                 return;
             }
 
-            // Verify account exists before generating OTP
+            // Verify account exists before generating verification code
             let user = (state.users || []).find(u => u.email && u.email.toLowerCase() === email);
             if (!user && _sb) {
                 try {
@@ -4314,13 +4303,10 @@
             const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
             state.forgotOtp = {
                 email,
-                mobile,
                 code: otpCode,
                 expiresAt: Date.now() + 600000 // 10 minutes
             };
 
-            const targetMobileEl = document.getElementById('otp-target-mobile');
-            if (targetMobileEl) targetMobileEl.textContent = mobile;
             const targetEmailEl = document.getElementById('otp-target-email');
             if (targetEmailEl) targetEmailEl.textContent = email;
             const inputEl = document.getElementById('forgot-otp-input');
@@ -4329,27 +4315,11 @@
                 inputEl.focus();
             }
 
-            // Dispatch real SMS via backend API (Renflair Gateway protected in .env)
-            showToast('📡 Dispathing code to mobile & email...', 'info');
-            let smsDelivered = false;
-            try {
-                const resp = await fetch('/api/auth/send-otp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone: mobile, email: email, otp: otpCode })
-                });
-                if (resp.ok) {
-                    const data = await resp.json();
-                    if (data.delivered) {
-                        smsDelivered = true;
-                    }
-                }
-            } catch (err) {
-                console.warn('Backend SMS endpoint unavailable:', err);
-            }
+            showToast(`📧 Dispatching verification code to ${email}...`, 'info');
 
-            // Dispatch Email OTP as well
+            // Dispatch Email verification code via backend API
             let emailDelivered = false;
+            let emailMessage = '';
             try {
                 const emailResp = await fetch('/api/auth/send-email-otp', {
                     method: 'POST',
@@ -4358,10 +4328,20 @@
                 });
                 if (emailResp.ok) {
                     const emailData = await emailResp.json();
-                    if (emailData.delivered) emailDelivered = true;
+                    emailDelivered = emailData.delivered;
+                    emailMessage = emailData.message || '';
                 }
             } catch (err) {
                 console.debug('Backend email OTP error:', err);
+            }
+
+            // Also trigger Supabase Auth reset password email if Supabase is active
+            if (_sb && _sb.auth && _sb.auth.resetPasswordForEmail) {
+                try {
+                    await _sb.auth.resetPasswordForEmail(email);
+                } catch (sbErr) {
+                    console.debug('Supabase email reset error:', sbErr);
+                }
             }
 
             const statusTitleEl = document.getElementById('otp-status-title');
@@ -4369,50 +4349,27 @@
             const emergencyWrapEl = document.getElementById('otp-emergency-wrap');
             const emergencyCodeEl = document.getElementById('emergency-code-display');
 
-            if (smsDelivered || emailDelivered) {
-                if (statusTitleEl) statusTitleEl.innerHTML = '📲 📧 <strong>Verification Code Delivered!</strong>';
+            if (emailDelivered) {
+                if (statusTitleEl) statusTitleEl.innerHTML = '📧 <strong>Verification Code Delivered to Email!</strong>';
                 if (statusNoticeEl) {
-                    statusNoticeEl.innerHTML = `A 6-digit verification code has been dispatched to your mobile <strong>${mobile}</strong> and email <strong>${email}</strong>. Please check your messages.`;
+                    statusNoticeEl.innerHTML = `A 6-digit verification code has been dispatched to your email inbox at <strong>${email}</strong>. Please check your inbox and spam folder.`;
                 }
                 if (emergencyWrapEl) emergencyWrapEl.style.display = 'none';
-                showToast(`📲 Code delivered to ${mobile} & ${email}!`, 'success');
+                showToast(`📧 Verification code delivered to ${email}! Check your inbox.`, 'success');
             } else {
-                if (statusTitleEl) statusTitleEl.innerHTML = '📲 <strong>Security Verification Code</strong>';
+                if (statusTitleEl) statusTitleEl.innerHTML = '📧 <strong>Email Verification Code</strong>';
                 if (statusNoticeEl) {
-                    statusNoticeEl.innerHTML = `A 6-digit verification code has been generated for mobile <strong>${mobile}</strong> and email <strong>${email}</strong>.`;
+                    statusNoticeEl.innerHTML = `Verification code for <strong>${email}</strong> has been generated. <span style="font-size:0.78rem; color:#64748b; display:block; margin-top:4px;">(To receive live emails in your inbox, add <code>SMTP_USER</code> and <code>SMTP_PASSWORD</code> in your <code>.env</code> file. For your testing right now, your authorized code is displayed below).</span>`;
                 }
                 if (emergencyWrapEl) {
                     emergencyWrapEl.style.display = 'block';
                     if (emergencyCodeEl) emergencyCodeEl.textContent = otpCode;
                 }
-                showToast(`📲 Verification code generated for ${mobile}`, 'info');
+                showToast(`📧 Verification code ready for ${email}`, 'info');
             }
 
             switchAuthMode('forgot-2');
-            startResendCooldown();
             startEmailResendCooldown();
-        }
-
-        let _resendTimer = null;
-        function startResendCooldown() {
-            let countdown = 30;
-            const btn = document.getElementById('btn-resend-otp');
-            if (!btn) return;
-            btn.style.pointerEvents = 'none';
-            btn.style.color = '#94a3b8';
-            btn.textContent = `Resend SMS (${countdown}s)`;
-            clearInterval(_resendTimer);
-            _resendTimer = setInterval(() => {
-                countdown--;
-                if (countdown <= 0) {
-                    clearInterval(_resendTimer);
-                    btn.style.pointerEvents = 'auto';
-                    btn.style.color = '#0284c7';
-                    btn.textContent = '📲 Resend SMS';
-                } else {
-                    btn.textContent = `Resend SMS (${countdown}s)`;
-                }
-            }, 1000);
         }
 
         let _emailResendTimer = null;
@@ -4513,9 +4470,9 @@
                 return;
             }
 
-            // STRICT EXACT MATCH: Must match the exact code sent to the phone!
+            // STRICT EXACT MATCH: Must match the exact code sent to email!
             if (enteredOtp !== state.forgotOtp.code) {
-                showToast('❌ Incorrect OTP code. Please enter the 6-digit code received on your phone.', 'error');
+                showToast('❌ Incorrect code. Please enter the 6-digit code received in your email.', 'error');
                 const inp = document.getElementById('forgot-otp-input');
                 if (inp) {
                     inp.value = '';
@@ -4529,7 +4486,7 @@
             document.getElementById('reset-confirm-password').value = '';
 
             switchAuthMode('forgot-3');
-            showToast(`✅ Security OTP verified! Please enter your new password.`, 'success');
+            showToast(`✅ Email verification successful! Please enter your new password.`, 'success');
         }
 
         async function handleResetPassword(e) {
@@ -4740,17 +4697,13 @@
             </div>
             
             <div class="auth-modal-body">
-                <!-- ── VIEW 1: CITIZEN LOGIN (EMAIL, MOBILE & PASSWORD) ── -->
+                <!-- ── VIEW 1: CITIZEN LOGIN (EMAIL & PASSWORD) ── -->
                 <div class="auth-subview" id="auth-view-login">
-                    <p class="auth-view-sub">Log in with your registered email, mobile number, and password.</p>
+                    <p class="auth-view-sub">Log in with your registered email and password.</p>
                     <form onsubmit="handleCitizenLogin(event)">
                         <div class="auth-form-group">
                             <label>Email Address *</label>
                             <input type="email" id="login-email" placeholder="name@example.com" value="" required>
-                        </div>
-                        <div class="auth-form-group">
-                            <label>Mobile Number (Registered) *</label>
-                            <input type="tel" id="login-mobile" placeholder="+91 98765 43210" value="" required>
                         </div>
                         <div class="auth-form-group">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -4839,33 +4792,29 @@
                     </div>
                 </div>
 
-                <!-- ── VIEW 3: FORGOT PASSWORD - STEP 1 (REQUEST MOBILE OTP) ── -->
+                <!-- ── VIEW 3: FORGOT PASSWORD - STEP 1 (REQUEST EMAIL VERIFICATION) ── -->
                 <div class="auth-subview" id="auth-view-forgot-1" style="display:none;">
-                    <p class="auth-view-sub">Enter your registered email and mobile number. We will dispatch a 6-digit verification OTP to your mobile phone to authorize the reset email.</p>
+                    <p class="auth-view-sub">Enter your registered email address. We will dispatch a 6-digit verification code to your email inbox to verify your identity and reset your password.</p>
                     <form onsubmit="handleSendForgotOtp(event)">
                         <div class="auth-form-group">
                             <label>Registered Email Address *</label>
                             <input type="email" id="forgot-email" placeholder="name@example.com" value="" required>
                         </div>
-                        <div class="auth-form-group">
-                            <label>Registered Mobile Number *</label>
-                            <input type="tel" id="forgot-mobile" placeholder="+91 98765 43210" value="" required>
-                        </div>
-                        <button type="submit" class="btn-auth-submit" style="background:#0284c7;">Send Security OTP to Mobile 📲</button>
+                        <button type="submit" class="btn-auth-submit" style="background:#0284c7;">Send Verification Code to Email 📧</button>
                     </form>
                     <div style="margin-top:14px; font-size:0.84rem; text-align:center;">
                         <a href="javascript:void(0)" onclick="switchAuthMode('login')" style="color:#64748b; font-weight:600; text-decoration:none;">← Back to Login</a>
                     </div>
                 </div>
 
-                <!-- ── VIEW 4: FORGOT PASSWORD - STEP 2 (VERIFY MOBILE OTP) ── -->
+                <!-- ── VIEW 4: FORGOT PASSWORD - STEP 2 (VERIFY EMAIL CODE) ── -->
                 <div class="auth-subview" id="auth-view-forgot-2" style="display:none;">
                     <div class="auth-banner-notice" id="otp-sent-banner" style="background:#f8fafc; border:1px solid #cbd5e1; color:#1e293b; padding:14px; border-radius:10px; margin-bottom:14px;">
                         <div id="otp-status-title" style="font-weight:700; font-size:0.92rem; margin-bottom:6px; color:#0f172a;">
-                            📲 Security Verification
+                            📧 Email Verification
                         </div>
                         <div id="otp-status-notice" style="font-size:0.84rem; line-height:1.5; color:#475569;">
-                            A 6-digit verification code has been dispatched to mobile <strong id="otp-target-mobile">+91 98401 23456</strong> and email <strong id="otp-target-email">user@example.com</strong>.
+                            A 6-digit verification code has been dispatched to your email <strong id="otp-target-email">user@example.com</strong>. Please check your inbox and spam folder.
                         </div>
                         <div id="otp-emergency-wrap" style="display:none; margin-top:10px; padding:10px 12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;">
                             <div style="font-size:0.82rem; color:#1e40af; font-weight:600; margin-bottom:6px;">
@@ -4877,33 +4826,27 @@
                         </div>
                     </div>
                     <p class="auth-view-sub" style="font-size:0.84rem; color:#64748b; margin-bottom:12px;">
-                        Enter the 6-digit verification code below to authorize your password reset.
+                        Enter the 6-digit email verification code below to authorize your password reset.
                     </p>
                     <form onsubmit="handleVerifyForgotOtp(event)">
                         <div class="auth-form-group" style="text-align:center;">
-                            <label style="text-align:center; font-weight:600; font-size:0.85rem;">Enter 6-Digit OTP *</label>
+                            <label style="text-align:center; font-weight:600; font-size:0.85rem;">Enter 6-Digit Email Code *</label>
                             <input type="text" id="forgot-otp-input" placeholder="• • • • • •" maxlength="6" inputmode="numeric" autocomplete="one-time-code" style="text-align:center; font-size:1.5rem; font-weight:800; letter-spacing:0.35em;" required>
                         </div>
-                        <button type="submit" class="btn-auth-submit" style="background:#16a34a; font-weight:700; padding:11px;">Verify & Continue 🔒</button>
+                        <button type="submit" class="btn-auth-submit" style="background:#16a34a; font-weight:700; padding:11px;">Verify Email & Continue 🔒</button>
                     </form>
-                    <div style="margin-top:14px; font-size:0.84rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-                        <div style="display:flex; gap:10px; align-items:center;">
-                            <span id="resend-timer-wrap">
-                                <a href="javascript:void(0)" id="btn-resend-otp" onclick="handleSendForgotOtp(event)" style="color:#0284c7; font-weight:600; text-decoration:none;">📲 Resend SMS</a>
-                            </span>
-                            <span style="color:#cbd5e1;">|</span>
-                            <span id="resend-email-timer-wrap">
-                                <a href="javascript:void(0)" id="btn-resend-email" onclick="handleResendEmailOtp(event)" style="color:#16a34a; font-weight:600; text-decoration:none;">📧 Resend Email</a>
-                            </span>
-                        </div>
+                    <div style="margin-top:14px; font-size:0.84rem; display:flex; justify-content:space-between; align-items:center;">
+                        <span id="resend-email-timer-wrap">
+                            <a href="javascript:void(0)" id="btn-resend-email" onclick="handleSendForgotOtp(event)" style="color:#0284c7; font-weight:600; text-decoration:none;">📧 Resend Email Code</a>
+                        </span>
                         <a href="javascript:void(0)" onclick="switchAuthMode('login')" style="color:#64748b; font-weight:600; text-decoration:none;">Cancel</a>
                     </div>
                 </div>
 
-                <!-- ── VIEW 5: FORGOT PASSWORD - STEP 3 (NEW PASSWORD & EMAIL RESET LINK) ── -->
+                <!-- ── VIEW 5: FORGOT PASSWORD - STEP 3 (NEW PASSWORD AFTER EMAIL VERIFICATION) ── -->
                 <div class="auth-subview" id="auth-view-forgot-3" style="display:none;">
                     <div class="auth-banner-notice" style="background:#ecfdf5; border-color:#6ee7b7; color:#065f46;">
-                        📧 <strong>Reset Email Authorized:</strong> Reset link dispatched to <strong id="reset-target-email">user@email.com</strong>. Identity verified via mobile OTP!
+                        📧 <strong>Email Identity Verified:</strong> Identity confirmed for <strong id="reset-target-email">user@email.com</strong>.
                     </div>
                     <p class="auth-view-sub">Set your new password below to restore access to your account.</p>
                     <form onsubmit="handleResetPassword(event)">
