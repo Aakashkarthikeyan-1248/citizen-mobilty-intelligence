@@ -180,15 +180,230 @@
             transition: background 0.2s;
         }
         .btn-auth:hover { background: var(--primary-dark); }
-        .user-dropdown-btn {
-            font-size: 0.82rem;
-            font-weight: 600;
-            color: var(--text-main);
-            background: transparent;
-            border: 1px solid var(--border);
-            padding: 5px 12px;
-            border-radius: 18px;
+        /* ── Modern User Profile Widget in Header ── */
+        .user-profile-container {
+            position: relative;
+            display: inline-block;
+        }
+        .user-profile-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #ffffff;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 24px;
+            padding: 4px 12px 4px 5px;
             cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .user-profile-btn:hover, .user-profile-btn.active {
+            background: #f8fafc;
+            border-color: #0284c7;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.15);
+        }
+        .profile-avatar-circle {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0284c7, #1e40af);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .profile-name-text {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: #0f172a !important; /* Bold, highly visible dark text */
+            max-width: 140px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .profile-chevron {
+            font-size: 0.7rem;
+            color: #64748b;
+            margin-left: 2px;
+            transition: transform 0.2s;
+        }
+        .user-profile-btn.active .profile-chevron {
+            transform: rotate(180deg);
+        }
+
+        /* ── Profile Dropdown Card ── */
+        .user-profile-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 320px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.18), 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+            z-index: 9999;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            animation: fadeInProfile 0.15s ease-out;
+        }
+        @keyframes fadeInProfile {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .profile-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .profile-dropdown-avatar {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0284c7, #1e40af);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .profile-dropdown-userinfo {
+            overflow: hidden;
+        }
+        .profile-dropdown-fullname {
+            font-size: 1rem;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.25;
+            margin-bottom: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .profile-dropdown-role {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 2px 8px;
+            border-radius: 10px;
+            display: inline-block;
+        }
+
+        /* ── Contact Details List ── */
+        .profile-info-group {
+            background: #f8fafc;
+            border: 1px solid #edf2f7;
+            border-radius: 10px;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 0.82rem;
+        }
+        .profile-info-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #334155;
+        }
+        .profile-info-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #64748b;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .profile-info-value {
+            font-weight: 600;
+            color: #0f172a;
+            font-family: inherit;
+            text-align: right;
+            max-width: 175px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .btn-mobile-action {
+            background: #e0f2fe;
+            border: 1px solid #bae6fd;
+            color: #0284c7;
+            font-size: 0.72rem;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 2px 7px;
+            border-radius: 4px;
+            transition: all 0.15s ease;
+        }
+        .btn-mobile-action:hover {
+            background: #0284c7;
+            color: #ffffff;
+        }
+
+        /* ── Credits Card Inside Profile ── */
+        .profile-credits-card {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border: 1px solid #a7f3d0;
+            border-radius: 10px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .profile-credits-meta {
+            display: flex;
+            flex-direction: column;
+        }
+        .profile-credits-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #065f46;
+        }
+        .profile-credits-count {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #047857;
+            line-height: 1.1;
+            margin-top: 2px;
+        }
+        .profile-credits-icon {
+            font-size: 1.6rem;
+        }
+
+        /* ── Log Out Button Inside Profile ── */
+        .btn-profile-logout {
+            width: 100%;
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 9px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.15s ease;
+            margin-top: 2px;
+        }
+        .btn-profile-logout:hover {
+            background: #ef4444;
+            border-color: #ef4444;
+            color: #ffffff;
         }
 
         /* ── Views Container (Single Page App Tabs) ────────────────── */
@@ -4591,23 +4806,138 @@
             if (state.user && state.user.role === 'admin') {
                 if (adminTab) adminTab.style.display = 'inline-flex';
                 citizenTabs.forEach(t => t.style.display = 'none');
-                document.getElementById('header-credits').style.display = 'none';
             } else {
                 if (adminTab) adminTab.style.display = 'none';
                 citizenTabs.forEach(t => t.style.display = 'inline-flex');
-                document.getElementById('header-credits').style.display = 'flex';
-                document.getElementById('credit-count').textContent = state.user.credits || 0;
             }
 
+            // Always hide floating outside credits from the header - it is now housed inside User Profile!
+            const headerCredits = document.getElementById('header-credits');
+            if (headerCredits) headerCredits.style.display = 'none';
+
+            const user = state.user || {};
+            const displayName = user.name || (user.email ? user.email.split('@')[0] : 'Citizen');
+            const displayPhone = user.phone || 'No mobile added';
+            const displayRole = user.role === 'admin' ? 'GCC Official' : 'Verified Citizen';
+            const displayCredits = user.credits || 0;
+            const displayLocation = user.location || 'Chennai, TN';
+
             document.getElementById('auth-slot').innerHTML = `
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <div style="background:rgba(255,255,255,0.08); padding:5px 12px; border-radius:20px; font-size:0.82rem; font-weight:600; color:#fff; border:1px solid rgba(255,255,255,0.15);">
-                        <span>${state.user.role === 'admin' ? '🏛️' : '👤'}</span> ${state.user.name || state.user.email}
+                <div class="user-profile-container" id="user-profile-widget">
+                    <button type="button" class="user-profile-btn" id="user-profile-trigger" onclick="toggleUserProfileDropdown(event)" title="View Profile, Mobile, & Credits">
+                        <div class="profile-avatar-circle">
+                            ${user.role === 'admin' ? '🏛️' : '👤'}
+                        </div>
+                        <span class="profile-name-text">${displayName}</span>
+                        <span class="profile-chevron">▼</span>
+                    </button>
+                    
+                    <div class="user-profile-dropdown" id="user-profile-dropdown" style="display:none;" onclick="event.stopPropagation()">
+                        <div class="profile-dropdown-header">
+                            <div class="profile-dropdown-avatar">
+                                ${user.role === 'admin' ? '🏛️' : '👤'}
+                            </div>
+                            <div class="profile-dropdown-userinfo">
+                                <div class="profile-dropdown-fullname" title="${displayName}">${displayName}</div>
+                                <span class="profile-dropdown-role">${displayRole}</span>
+                            </div>
+                        </div>
+
+                        <div class="profile-info-group">
+                            <div class="profile-info-row">
+                                <span class="profile-info-label">📧 Email</span>
+                                <span class="profile-info-value" title="${user.email || ''}">${user.email || '-'}</span>
+                            </div>
+                            <div class="profile-info-row">
+                                <span class="profile-info-label">📱 Mobile</span>
+                                <div style="display:flex; align-items:center; gap:4px;">
+                                    <span class="profile-info-value" id="profile-display-phone" style="font-family:monospace;">${displayPhone}</span>
+                                    <button type="button" class="btn-mobile-action" onclick="promptEditMobile()" title="Edit or update mobile number">✏️ Edit</button>
+                                    <button type="button" class="btn-mobile-action" onclick="copyUserMobile()" title="Copy mobile number">📋</button>
+                                </div>
+                            </div>
+                            <div class="profile-info-row">
+                                <span class="profile-info-label">📍 Area</span>
+                                <span class="profile-info-value">${displayLocation}</span>
+                            </div>
+                        </div>
+
+                        <div class="profile-credits-card">
+                            <div class="profile-credits-meta">
+                                <span class="profile-credits-title">Civic Balance</span>
+                                <span class="profile-credits-count"><span id="profile-credit-count">${displayCredits}</span> Credits</span>
+                            </div>
+                            <div class="profile-credits-icon">🏆</div>
+                        </div>
+
+                        <button type="button" class="btn-profile-logout" onclick="logoutUser()">
+                            🚪 Log Out
+                        </button>
                     </div>
-                    <button class="btn-logout" onclick="logoutUser()" style="background:#ef4444; color:#fff; border:none; padding:6px 14px; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer; transition:0.2s;">Log Out</button>
                 </div>
             `;
         }
+
+        function toggleUserProfileDropdown(e) {
+            if (e) e.stopPropagation();
+            const dropdown = document.getElementById('user-profile-dropdown');
+            const trigger = document.getElementById('user-profile-trigger');
+            if (!dropdown) return;
+            const isOpen = dropdown.style.display === 'flex';
+            dropdown.style.display = isOpen ? 'none' : 'flex';
+            if (trigger) {
+                if (isOpen) trigger.classList.remove('active');
+                else trigger.classList.add('active');
+            }
+        }
+
+        function promptEditMobile() {
+            if (!state.user) return;
+            const current = state.user.phone || '';
+            const input = prompt('Enter your 10-digit mobile number for dispatch alerts:', current);
+            if (input === null) return;
+            const clean = input.replace(/[^\d+]/g, '').trim();
+            if (clean.length < 10) {
+                showToast('Please enter a valid 10-digit mobile number.', 'warn');
+                return;
+            }
+            state.user.phone = clean;
+            const phoneEl = document.getElementById('profile-display-phone');
+            if (phoneEl) phoneEl.textContent = clean;
+
+            // Persist to Supabase table
+            if (_sb && state.user.id) {
+                _sb.from('cmi_users').update({ employee_id: clean }).eq('id', state.user.id)
+                    .then(() => console.debug('Phone updated in Supabase'))
+                    .catch(e => console.debug('Supabase phone update error:', e));
+            }
+            showToast(`📱 Mobile number updated to ${clean}!`, 'success');
+        }
+
+        function copyUserMobile() {
+            if (!state.user || !state.user.phone) {
+                showToast('No mobile number saved yet. Click Edit to add one.', 'info');
+                return;
+            }
+            navigator.clipboard.writeText(state.user.phone).then(() => {
+                showToast(`📋 Copied ${state.user.phone} to clipboard!`, 'success');
+            }).catch(() => {
+                showToast(`Mobile: ${state.user.phone}`, 'info');
+            });
+        }
+
+        // Global click listener to dismiss profile dropdown on outside click
+        document.addEventListener('click', (e) => {
+            const widget = document.getElementById('user-profile-widget');
+            const dropdown = document.getElementById('user-profile-dropdown');
+            const trigger = document.getElementById('user-profile-trigger');
+            if (dropdown && dropdown.style.display === 'flex') {
+                if (!widget || !widget.contains(e.target)) {
+                    dropdown.style.display = 'none';
+                    if (trigger) trigger.classList.remove('active');
+                }
+            }
+        });
 
         function logoutUser() {
             state.user = null;
@@ -4617,7 +4947,9 @@
             const adminTab = document.getElementById('nav-btn-admin');
             if (adminTab) adminTab.style.display = 'none';
 
-            document.getElementById('header-credits').style.display = 'none';
+            const headerCredits = document.getElementById('header-credits');
+            if (headerCredits) headerCredits.style.display = 'none';
+
             document.getElementById('auth-slot').innerHTML = `
                 <button class="btn-auth" onclick="openAuthModal()">Log in / Sign up</button>
             `;
@@ -4628,7 +4960,10 @@
         function awardCredits(pts) {
             if (!state.user) return;
             state.user.credits = (state.user.credits || 0) + pts;
-            document.getElementById('credit-count').textContent = state.user.credits;
+            const profileCreditEl = document.getElementById('profile-credit-count');
+            if (profileCreditEl) profileCreditEl.textContent = state.user.credits;
+            const headerCreditEl = document.getElementById('credit-count');
+            if (headerCreditEl) headerCreditEl.textContent = state.user.credits;
         }
 
         // Live Chennai Weather
@@ -4668,6 +5003,9 @@
         window.handleAdminLogin = handleAdminLogin;
         window.quickLoginDemo = quickLoginDemo;
         window.logoutUser = logoutUser;
+        window.toggleUserProfileDropdown = toggleUserProfileDropdown;
+        window.promptEditMobile = promptEditMobile;
+        window.copyUserMobile = copyUserMobile;
         window.highlightIncidentCard = highlightIncidentCard;
         window.openIncidentDetail = openIncidentDetail;
         window.closeIncidentDetail = closeIncidentDetail;
