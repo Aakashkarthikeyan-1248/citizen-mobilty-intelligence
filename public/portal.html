@@ -409,7 +409,7 @@
           </div>
           <button type="submit" class="btn-primary admin">Access admin portal</button>
         </form>
-        <div class="demo-hint">Demo admin account: admin@citylens.demo · EMP-0001 · CityLens-Demo-2026</div>
+        <div class="demo-hint">Authorized Municipal Official: aakashkarthikeyan1248@gmail.com • 7449191191 • rtx3050</div>
         <button class="link-btn admin" type="button" data-go="admin-request">Need an admin account? Request access</button>
         <button class="link-btn muted" type="button" data-go="auth-gateway">← Back</button>
       </div>
@@ -702,7 +702,7 @@
       NOMINATIM_URL: 'https://nominatim.openstreetmap.org/search',
       OPEN_METEO_URL: 'https://api.open-meteo.com/v1/forecast?latitude=13.0827&longitude=80.2707&current=temperature_2m,relative_humidity_2m,weather_code',
       // Demo-only admin account, seeded on first run. Replace with real accounts in the backend.
-      DEMO_ADMIN: { email: 'admin@citylens.demo', employeeId: 'EMP-0001', password: 'CityLens-Demo-2026' }
+      DEMO_ADMIN: { email: 'aakashkarthikeyan1248@gmail.com', employeeId: '7449191191', password: 'rtx3050' }
     };
 
     /* Offline gazetteer of Chennai areas (approximate centres). Used for search and instant place resolution. */
@@ -958,7 +958,7 @@
         if (localStorage.getItem(P + 'seeded')) return;
         const admin = await derivePassword(CONFIG.DEMO_ADMIN.password);
         writeKey('users', [{
-          id: 'admin-demo', name: 'Demo Administrator', email: CONFIG.DEMO_ADMIN.email, employeeId: CONFIG.DEMO_ADMIN.employeeId,
+          id: 'admin-demo', name: 'Aakash Karthikeyan (GCC Admin)', email: CONFIG.DEMO_ADMIN.email, employeeId: CONFIG.DEMO_ADMIN.employeeId,
           role: 'admin', status: 'active', salt: admin.salt, hash: admin.hash, createdAt: Date.now()
         }]);
         writeKey('incidents', seedIncidents());

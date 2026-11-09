@@ -4771,28 +4771,67 @@
 
         function handleAdminLogin(e) {
             if (e) e.preventDefault();
-            const officerId = (document.getElementById('admin-login-id').value || '').trim();
-            const phone = (document.getElementById('admin-login-phone').value || '').trim();
-            const pass = document.getElementById('admin-login-pass').value;
+            const idInput = document.getElementById('admin-login-id');
+            const phoneInput = document.getElementById('admin-login-phone');
+            const passInput = document.getElementById('admin-login-pass');
 
+            const officerId = (idInput ? idInput.value : '').trim().toLowerCase();
+            const rawPhone = (phoneInput ? phoneInput.value : '').trim();
+            const cleanPhone = rawPhone.replace(/\D/g, '');
+            const pass = (passInput ? passInput.value : '').trim();
+
+            const targetEmail = 'aakashkarthikeyan1248@gmail.com';
+            const targetPhone = '7449191191';
+            const targetPass = 'rtx3050';
+
+            // Verify Official Email / ID
+            if (officerId !== targetEmail) {
+                showToast('❌ Access Denied: Unauthorized Municipal Officer email.', 'error');
+                if (idInput) idInput.focus();
+                return;
+            }
+
+            // Verify Official Mobile Number (accepts 7449191191, 917449191191, +91 7449191191)
+            const isValidPhone = cleanPhone === targetPhone || 
+                                 cleanPhone === ('91' + targetPhone) || 
+                                 (cleanPhone.endsWith(targetPhone) && cleanPhone.length <= 13);
+            if (!isValidPhone) {
+                showToast('❌ Access Denied: Unauthorized official mobile number.', 'error');
+                if (phoneInput) phoneInput.focus();
+                return;
+            }
+
+            // Verify Department Security Key / Password
+            if (pass !== targetPass) {
+                showToast('❌ Access Denied: Incorrect Security Key / Password.', 'error');
+                if (passInput) {
+                    passInput.value = '';
+                    passInput.focus();
+                }
+                return;
+            }
+
+            // Authorized GCC Municipal Official Admin session
             state.user = {
-                id: 'admin-' + Math.random().toString(36).substr(2, 7),
-                name: `Officer (${officerId || 'GCC-TRAFFIC-DIV-04'})`,
-                department: 'Greater Chennai Corporation (GCC)',
-                phone: phone || '+91 98400 11223',
+                id: 'admin-gcc-ak1248',
+                name: 'Aakash Karthikeyan (GCC Admin)',
+                email: targetEmail,
+                department: 'Greater Chennai Corporation (GCC) Command',
+                phone: '+91 7449191191',
+                location: 'Ripon Building, GCC Command Center, Chennai',
                 role: 'admin',
-                credits: 1500
+                credits: 2500
             };
 
             onUserLoggedIn();
             closeAuthModal();
-            showToast('Municipal Official authorized. Dispatch center unlocked.', 'success');
+            showToast('🏛️ Municipal Official Authorized. Welcome, Administrator Aakash!', 'success');
             switchView('admin-center');
         }
 
         function quickLoginDemo(role) {
             if (role === 'admin') {
-                handleAdminLogin();
+                showToast('🔒 Municipal Official access requires authorized admin credentials.', 'warning');
             }
         }
 
@@ -5202,21 +5241,27 @@
 
                 <!-- ── VIEW 6: MUNICIPAL ADMIN LOGIN ── -->
                 <div class="auth-subview" id="auth-view-admin" style="display:none;">
-                    <p class="auth-view-sub">Authorized portal for Greater Chennai Corporation (GCC) engineers and Traffic Police command.</p>
+                    <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:10px 12px; margin-bottom:14px; display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:1.2rem;">🏛️</span>
+                        <div style="font-size:0.82rem; color:#166534; line-height:1.4;">
+                            <strong>GCC Municipal Command Center</strong><br>
+                            Restricted strictly to verified Municipal Officials and GCC Traffic Command personnel.
+                        </div>
+                    </div>
                     <form onsubmit="handleAdminLogin(event)">
                         <div class="auth-form-group">
                             <label>Municipal Officer ID / Email *</label>
-                            <input type="text" id="admin-login-id" placeholder="GCC-TRAFFIC-DIV-04" value="" required>
+                            <input type="email" id="admin-login-id" placeholder="aakashkarthikeyan1248@gmail.com" value="" required autocomplete="email">
                         </div>
                         <div class="auth-form-group">
                             <label>Official Mobile Number *</label>
-                            <input type="tel" id="admin-login-phone" placeholder="+91 98400 11223" value="" required>
+                            <input type="tel" id="admin-login-phone" placeholder="7449191191" value="" required autocomplete="tel">
                         </div>
                         <div class="auth-form-group">
                             <label>Department Security Key / Password *</label>
-                            <input type="password" id="admin-login-pass" placeholder="••••••••" value="" required>
+                            <input type="password" id="admin-login-pass" placeholder="••••••••" value="" required autocomplete="current-password">
                         </div>
-                        <button type="submit" class="btn-auth-submit btn-auth-admin">Sign In as Municipal Official</button>
+                        <button type="submit" class="btn-auth-submit btn-auth-admin">Sign In as Municipal Official 🔒</button>
                     </form>
                     
                     
